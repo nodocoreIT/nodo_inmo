@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@theme {
+  /* ─── Nodo Brand Colors ─────────────────────────────────── */
+  --color-navy: #1B2A41;
+  --color-navy-700: #233650;
+  --color-navy-900: #121E2F;
+  --color-brand: #DA5A0E;
+  --color-brand-600: #C04E0B;
+  --color-brand-300: #F0A877;
+  --color-paper: #F5F8FC;
+  --color-slate2: #647890;
+  --color-slate2-300: #9DACBE;
+  --color-mist: #DEE7F1;
+  --color-mist-200: #EBF1F7;
+  --color-ink: #16202E;
+  --color-footer: #0D1722;
+
+  /* ─── shadcn/ui semantic tokens — wired to Nodo palette ─── */
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --color-card: #ffffff;
+  --color-card-foreground: var(--color-ink);
+  --color-popover: #ffffff;
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-mist);
+  --color-secondary-foreground: var(--color-navy);
+  --color-muted: var(--color-mist-200);
+  --color-muted-foreground: var(--color-slate2);
+  --color-accent: var(--color-mist);
+  --color-accent-foreground: var(--color-navy);
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-border: var(--color-mist);
+  --color-input: var(--color-mist);
+  --color-ring: var(--color-brand);
+
+  /* ─── Typography ─────────────────────────────────────────── */
+  --font-display: "Sora", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk", system-ui, sans-serif;
+
+  /* ─── Radius ──────────────────────────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+
+  /* shadcn uses --radius as its base radius token */
+  --radius: 8px;
+
+  /* ─── Shadows ─────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(18, 30, 47, 0.06), 0 2px 6px rgba(18, 30, 47, 0.05);
+  --shadow-md: 0 8px 24px rgba(18, 30, 47, 0.08), 0 2px 6px rgba(18, 30, 47, 0.04);
+  --shadow-lg: 0 24px 60px rgba(18, 30, 47, 0.16), 0 8px 20px rgba(18, 30, 47, 0.08);
+}
+
+/* ─── Base styles ──────────────────────────────────────────── */
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
