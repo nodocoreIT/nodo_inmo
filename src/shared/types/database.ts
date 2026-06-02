@@ -9,6 +9,57 @@ export type Json =
 export type Database = {
   nodo_inmo: {
     Tables: {
+      owners: {
+        Row: {
+          address: string | null
+          can_view_construction: boolean
+          can_view_rentals: boolean
+          can_view_sales: boolean
+          commission_rate: number
+          created_at: string
+          dni: string | null
+          email: string | null
+          id: string
+          name: string
+          org_id: string
+          phone: string | null
+          portal_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          can_view_construction?: boolean
+          can_view_rentals?: boolean
+          can_view_sales?: boolean
+          commission_rate?: number
+          created_at?: string
+          dni?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          org_id: string
+          phone?: string | null
+          portal_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          can_view_construction?: boolean
+          can_view_rentals?: boolean
+          can_view_sales?: boolean
+          commission_rate?: number
+          created_at?: string
+          dni?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          org_id?: string
+          phone?: string | null
+          portal_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       properties: {
         Row: {
           address: string
@@ -64,7 +115,15 @@ export type Database = {
           total_sqm?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "properties_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "owners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
