@@ -1,8 +1,23 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useProperties } from "@/features/properties/hooks/use-properties";
+import type { PropertyRow } from "@/features/properties/hooks/use-properties";
+import { useUpdateProperty } from "@/features/properties/hooks/use-update-property";
+import { useDeleteProperty } from "@/features/properties/hooks/use-delete-property";
 import { CreatePropertyDialog } from "./create-property-dialog";
+import { PropertyFormDialog } from "./property-form-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/shared/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -20,7 +35,11 @@ import {
 
 export function PropertiesList() {
   const { data, isLoading, isError } = useProperties();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editProperty, setEditProperty] = useState<PropertyRow | null>(null);
+
+  const updateProperty = useUpdateProperty();
+  const deleteProperty = useDeleteProperty();
 
   return (
     <div className="flex flex-col gap-6">
@@ -32,10 +51,7 @@ export function PropertiesList() {
             Listado de propiedades de la agencia
           </p>
         </div>
-        <Button
-          onClick={() => setDialogOpen(true)}
-          className="gap-2"
-        >
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           Nueva propiedad
         </Button>
@@ -84,6 +100,7 @@ export function PropertiesList() {
                 <TableHead>Estado</TableHead>
                 <TableHead>Precio</TableHead>
                 <TableHead>Amb.</TableHead>
+                <TableHead className="w-24 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -106,6 +123,15 @@ export function PropertiesList() {
                     {formatPrice(property.sale_price, property.currency)}
                   </TableCell>
                   <TableCell>{property.rooms ?? "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <RowActions
+                      property={property}
+                      onEdit={() => setEditProperty(property)}
+                      onDeleteConfirm={() =>
+                        deleteProperty.mutateAsync(property.id)
+                      }
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -113,14 +139,80 @@ export function PropertiesList() {
         </div>
       )}
 
+      {/* Create dialog */}
       <CreatePropertyDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSuccess={() => setDialogOpen(false)}
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={() => setCreateOpen(false)}
       />
+
+      {/* Edit dialog */}
+      {editProperty && (
+        <PropertyFormDialog
+          open={!!editProperty}
+          onOpenChange={(open) => {
+            if (!open) setEditProperty(null);
+          }}
+          property={editProperty}
+          onSuccess={() => setEditProperty(null)}
+          onSubmit={(payload, prop) =>
+            updateProperty.mutateAsync({ id: prop!.id, ...payload }).then(() => undefined)
+          }
+          isPending={updateProperty.isPending}
+        />
+      )}
     </div>
   );
 }
+
+// ── Row actions ───────────────────────────────────────────────────────────────
+
+interface RowActionsProps {
+  property: PropertyRow;
+  onEdit: () => void;
+  onDeleteConfirm: () => void;
+}
+
+function RowActions({ onEdit, onDeleteConfirm }: RowActionsProps) {
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label="Editar"
+        onClick={onEdit}
+      >
+        <Pencil className="h-4 w-4" />
+        <span className="sr-only">Editar</span>
+      </Button>
+
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="ghost" size="sm" aria-label="Eliminar">
+            <Trash2 className="h-4 w-4 text-destructive" />
+            <span className="sr-only">Eliminar</span>
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta propiedad?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={onDeleteConfirm}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ── Status badge ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
   const label = STATUS_LABELS[status] ?? status;
