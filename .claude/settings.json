@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(eza -la --tree --level=2 .claude)",
+      "Bash(git check-ignore *)"
+    ]
+  }
+}
