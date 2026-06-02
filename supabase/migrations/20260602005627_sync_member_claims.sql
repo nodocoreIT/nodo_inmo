@@ -14,8 +14,11 @@
 --     hardcoded in this file.
 --   - pg_net lives in schema 'net'; referenced as net.http_post (fully qualified).
 
--- Ensure pg_net extension is present (idempotent; already present on local)
-create extension if not exists pg_net with schema net;
+-- Ensure pg_net extension is present (idempotent). Do NOT force `with schema net`:
+-- on a fresh remote the `net` schema does not pre-exist, and WITH SCHEMA requires
+-- an existing schema. Without it, the extension creates its default `net` schema
+-- itself (functions land in net.*, e.g. net.http_post).
+create extension if not exists pg_net;
 
 -- ---------------------------------------------------------------------------
 -- Trigger function

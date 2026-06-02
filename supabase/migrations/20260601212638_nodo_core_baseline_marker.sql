@@ -1,0 +1,12 @@
+-- Baseline marker for the SHARED Supabase database (project iprrlgmhpsxzyrejabtu).
+--
+-- This database is shared across the Nodo ecosystem. The migration version
+-- 20260601212638 was created and applied by the *nodo-core* repo, which owns it.
+-- It is recorded here as an INTENTIONALLY EMPTY placeholder so that this repo's
+-- local migration history is consistent with the remote schema_migrations table
+-- (otherwise `supabase db push` refuses, seeing a remote version with no local
+-- file).
+--
+-- It is never executed against the remote: that version is already applied there,
+-- so `db push` skips it and only applies this repo's newer (20260602*) migrations.
+-- Do NOT add SQL here — nodo-core owns the real content of this version.
