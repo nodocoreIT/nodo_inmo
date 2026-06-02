@@ -1,0 +1,145 @@
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/shared/components/ui/button";
+import { useProperties } from "@/features/properties/hooks/use-properties";
+import { CreatePropertyDialog } from "./create-property-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/components/ui/table";
+import {
+  OPERATION_LABELS,
+  PROPERTY_TYPE_LABELS,
+  STATUS_LABELS,
+  formatPrice,
+} from "@/features/properties/lib/property-labels";
+
+export function PropertiesList() {
+  const { data, isLoading, isError } = useProperties();
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-navy">Propiedades</h2>
+          <p className="mt-1 text-sm text-slate2">
+            Listado de propiedades de la agencia
+          </p>
+        </div>
+        <Button
+          onClick={() => setDialogOpen(true)}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Nueva propiedad
+        </Button>
+      </div>
+
+      {/* Content */}
+      {isLoading && (
+        <div
+          role="status"
+          aria-label="Cargando propiedades"
+          className="flex items-center justify-center py-16"
+        >
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+          <span className="sr-only">Cargando…</span>
+        </div>
+      )}
+
+      {isError && (
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          Error al cargar las propiedades. Intentá de nuevo.
+        </div>
+      )}
+
+      {!isLoading && !isError && data?.length === 0 && (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-mist py-16 text-center">
+          <p className="text-sm font-medium text-slate2">
+            Todavía no cargaste propiedades
+          </p>
+          <p className="text-xs text-slate2-300">
+            Hacé clic en "Nueva propiedad" para empezar.
+          </p>
+        </div>
+      )}
+
+      {!isLoading && !isError && data && data.length > 0 && (
+        <div className="rounded-md border border-border bg-card shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Dirección</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Operación</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Precio</TableHead>
+                <TableHead>Amb.</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((property) => (
+                <TableRow key={property.id}>
+                  <TableCell className="font-medium">
+                    {property.address}
+                  </TableCell>
+                  <TableCell>
+                    {PROPERTY_TYPE_LABELS[property.property_type] ??
+                      property.property_type}
+                  </TableCell>
+                  <TableCell>
+                    {OPERATION_LABELS[property.operation] ?? property.operation}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={property.status} />
+                  </TableCell>
+                  <TableCell>
+                    {formatPrice(property.sale_price, property.currency)}
+                  </TableCell>
+                  <TableCell>{property.rooms ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      <CreatePropertyDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSuccess={() => setDialogOpen(false)}
+      />
+    </div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const label = STATUS_LABELS[status] ?? status;
+
+  const colorMap: Record<string, string> = {
+    available: "bg-green-100 text-green-800",
+    reserved: "bg-yellow-100 text-yellow-800",
+    rented: "bg-blue-100 text-blue-800",
+    sold: "bg-slate-100 text-slate-700",
+    inactive: "bg-red-100 text-red-700",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-pill px-2 py-0.5 text-xs font-medium ${
+        colorMap[status] ?? "bg-mist text-slate2"
+      }`}
+    >
+      {label}
+    </span>
+  );
+}

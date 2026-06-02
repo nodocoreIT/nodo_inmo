@@ -1,14 +1,28 @@
-/**
- * AdminPortalPage — minimal landing for admin and agent roles.
- * Full portal content is implemented in later slices.
- */
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AdminLayout } from "./components/admin-layout";
+import { PropertiesList } from "@/features/properties/components/properties-list";
+
+function PlaceholderPage({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <h2 className="text-2xl font-bold text-navy">{title}</h2>
+      <p className="text-sm text-slate2">Próximamente disponible.</p>
+    </div>
+  );
+}
+
 export function AdminPortalPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-paper">
-      <div className="text-center">
-        <h1 className="text-3xl text-navy">Portal Admin</h1>
-        <p className="mt-2 text-slate2">Panel de administración</p>
-      </div>
-    </div>
+    <Routes>
+      <Route element={<AdminLayout />}>
+        {/* Default → properties */}
+        <Route index element={<Navigate to="properties" replace />} />
+        <Route path="properties" element={<PropertiesList />} />
+        <Route path="owners" element={<PlaceholderPage title="Propietarios" />} />
+        <Route path="contracts" element={<PlaceholderPage title="Contratos" />} />
+        <Route path="payments" element={<PlaceholderPage title="Pagos" />} />
+        <Route path="caja" element={<PlaceholderPage title="Caja" />} />
+      </Route>
+    </Routes>
   );
 }
