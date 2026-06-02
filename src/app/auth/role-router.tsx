@@ -34,7 +34,15 @@ export function RoleRouter() {
     return <Navigate to={ROLE_DESTINATIONS[role]} replace />;
   }
 
-  // Session exists but no role yet — redirect to pending state via RequireAuth
-  // (or show inline; for now redirect to a protected route that shows it)
-  return <Navigate to="/pending" replace />;
+  // Session exists but the claim-sync hasn't assigned a role yet. Render the
+  // pending state inline (there is no /pending route — navigating there 404s).
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-paper px-4 text-center">
+      <h2 className="text-2xl text-navy">Acceso pendiente</h2>
+      <p className="max-w-sm text-slate2">
+        Tu cuenta está siendo configurada. Recargá en unos segundos o contactá al
+        administrador si el problema persiste.
+      </p>
+    </div>
+  );
 }

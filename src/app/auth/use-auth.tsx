@@ -45,6 +45,35 @@ export interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * Read org_id + role from the ACCESS TOKEN claims, not from session.user.app_metadata.
+ *
+ * The Custom Access Token Hook injects org_id/role into the JWT claims at mint
+ * time. supabase-js populates `session.user.app_metadata` from the stored user
+ * record (which only has provider/providers) — NOT from the hook-injected claims.
+ * So the authorization signal lives in the decoded access_token, not on user.
+ */
+function readClaims(session: Session | null): {
+  role: AppRole | null;
+  orgId: string | null;
+} {
+  const token = session?.access_token;
+  if (!token) return { role: null, orgId: null };
+  try {
+    const payloadB64 = token.split(".")[1];
+    const json = atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(json) as {
+      app_metadata?: { role?: AppRole; org_id?: string };
+    };
+    return {
+      role: payload.app_metadata?.role ?? null,
+      orgId: payload.app_metadata?.org_id ?? null,
+    };
+  } catch {
+    return { role: null, orgId: null };
+  }
+}
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -79,8 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => supabase.auth.signOut(), []);
 
   const user = session?.user ?? null;
-  const role = (user?.app_metadata?.role as AppRole) ?? null;
-  const orgId = (user?.app_metadata?.org_id as string) ?? null;
+  const { role, orgId } = readClaims(session);
 
   return (
     <AuthContext.Provider

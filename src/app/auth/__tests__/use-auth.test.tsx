@@ -36,26 +36,40 @@ function asSubscriptionReturn(unsubscribeFn: ReturnType<typeof vi.fn>): ReturnTy
   };
 }
 
-function makeUser(overrides: Partial<User["app_metadata"]> = {}): User {
+/**
+ * Build a fake JWT whose payload encodes app_metadata claims. useAuth reads
+ * role/org_id from the decoded access_token (NOT from user.app_metadata, which
+ * supabase-js fills from the stored user record without the hook-injected claims).
+ */
+function fakeJwt(appMetadata: Record<string, unknown>): string {
+  const b64 = btoa(JSON.stringify({ app_metadata: appMetadata }))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  return `header.${b64}.sig`;
+}
+
+function makeUser(): User {
   return {
     id: "user-1",
     aud: "authenticated",
     role: "authenticated",
     email: "test@nodo.com",
-    app_metadata: { role: "admin", org_id: "org-abc", ...overrides },
+    app_metadata: {}, // mirrors reality: stored app_metadata has no role/org_id
     user_metadata: {},
     created_at: new Date().toISOString(),
   } as User;
 }
 
-function makeSession(userOverrides?: Partial<User["app_metadata"]>): Session {
-  const user = makeUser(userOverrides);
+function makeSession(
+  appMetadata: Record<string, unknown> = { role: "admin", org_id: "org-abc" },
+): Session {
   return {
-    access_token: "token",
+    access_token: fakeJwt(appMetadata),
     refresh_token: "refresh",
     expires_in: 3600,
     token_type: "bearer",
-    user,
+    user: makeUser(),
   } as Session;
 }
 
@@ -95,9 +109,8 @@ describe("useAuth", () => {
   });
 
   it("exposes null role and orgId when app_metadata is empty", async () => {
+    // Token carries no app_metadata claims (claim-sync hasn't run).
     const session = makeSession({});
-    // Override to remove role/org_id
-    (session.user.app_metadata as Record<string, unknown>) = {};
 
     vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session },
