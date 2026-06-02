@@ -1,58 +1,45 @@
--- Test: R13 — shared.sync_member_claims() structural assertions
+-- Test: R13 (removed) — verify old trigger/function machinery was dropped
 --
--- Behavioral claim propagation requires a live auth service + served Edge Function
--- and is tested manually (see CONVENTIONS.md integration test section).
--- This file covers the structural contract only:
---   1. The trigger function exists and is security definer.
---   2. search_path is '' (empty) on the function.
---   3. The trigger exists on shared.org_members for AFTER INSERT OR UPDATE OF role, org_id.
+-- The sync_member_claims trigger + function have been superseded by the
+-- Custom Access Token Hook (R14, 070_access_token_hook.test.sql).
+-- This file now asserts the OLD machinery is gone so a future accidental
+-- re-introduction of the trigger is caught.
 begin;
 select plan(4);
 
--- 1. Function shared.sync_member_claims exists
-select has_function(
+-- 1. shared.sync_member_claims() function no longer exists
+select hasnt_function(
   'shared',
   'sync_member_claims',
-  'shared.sync_member_claims() function exists'
+  'shared.sync_member_claims() trigger function was dropped (superseded by hook)'
 );
 
--- 2. Function is security definer
+-- 2. No functions named sync_member_claims anywhere
 select is(
   (
-    select prosecdef
+    select count(*)::int
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'shared'
-      and p.proname = 'sync_member_claims'
+    where p.proname = 'sync_member_claims'
   ),
-  true,
-  'shared.sync_member_claims() is security definer'
+  0,
+  'No sync_member_claims function in any schema'
 );
 
--- 3. search_path is '' (empty string) on the function.
--- Postgres stores the GUC as 'search_path=""' for an empty search_path.
--- Use a lateral unnest to avoid set-returning function in WHERE clause.
-select is(
-  (
-    select cfg
-    from pg_proc p
-    join pg_namespace n on n.oid = p.pronamespace,
-    lateral pg_catalog.unnest(p.proconfig) as cfg
-    where n.nspname = 'shared'
-      and p.proname = 'sync_member_claims'
-      and cfg like 'search_path=%'
-    limit 1
-  ),
-  'search_path=""',
-  'shared.sync_member_claims() has search_path set to empty string'
-);
-
--- 4. Trigger sync_member_claims_aiu exists on shared.org_members
-select has_trigger(
+-- 3. Trigger sync_member_claims_aiu no longer exists on shared.org_members
+select hasnt_trigger(
   'shared',
   'org_members',
   'sync_member_claims_aiu',
-  'Trigger sync_member_claims_aiu exists on shared.org_members'
+  'Trigger sync_member_claims_aiu was dropped (superseded by hook)'
+);
+
+-- 4. shared.custom_access_token_hook is the replacement — it exists
+select has_function(
+  'shared',
+  'custom_access_token_hook',
+  ARRAY['jsonb'],
+  'shared.custom_access_token_hook(jsonb) is the replacement (hook)'
 );
 
 select * from finish();
