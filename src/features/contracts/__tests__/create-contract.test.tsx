@@ -70,9 +70,15 @@ vi.mock("@/shared/components/ui/select", () => ({
   SelectTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SelectValue: (_props: { placeholder?: string }) => null,
   SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
-    <option value={value}>{children}</option>
-  ),
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => {
+    // Mirror Radix's contract: an empty-string item value crashes at runtime.
+    if (value === "") {
+      throw new Error(
+        'A <SelectItem /> must have a value prop that is not an empty string.',
+      );
+    }
+    return <option value={value}>{children}</option>;
+  },
 }));
 
 const mockMutateAsync = vi.fn();

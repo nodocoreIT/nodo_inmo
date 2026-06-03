@@ -56,6 +56,11 @@ const schema = z.object({
 
 export type PropertyFormValues = z.infer<typeof schema>;
 
+// Radix Select forbids an empty-string item value (it reserves "" for the
+// cleared state). Use a sentinel for the "no owner" option and map it back to
+// an empty string (→ null) on change.
+const NO_OWNER = "none";
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function toNumberOrNull(v: string | undefined | null): number | null {
@@ -385,7 +390,12 @@ export function PropertyFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel htmlFor="owner-select">Propietario</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                  <Select
+                    onValueChange={(v) =>
+                      field.onChange(v === NO_OWNER ? "" : v)
+                    }
+                    value={field.value ? field.value : NO_OWNER}
+                  >
                     <FormControl>
                       <SelectTrigger
                         id="owner-select"
@@ -395,7 +405,7 @@ export function PropertyFormDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Sin propietario</SelectItem>
+                      <SelectItem value={NO_OWNER}>Sin propietario</SelectItem>
                       {owners.map((owner) => (
                         <SelectItem key={owner.id} value={owner.id}>
                           {owner.name}
