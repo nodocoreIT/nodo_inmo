@@ -4,6 +4,7 @@ import { PropertiesList } from "@/features/properties/components/properties-list
 import { PropietariosList } from "@/features/contacts/components/propietarios-list";
 import { InquilinosList } from "@/features/contacts/components/inquilinos-list";
 import { ContractsList } from "@/features/contracts/components/contracts-list";
+import { PaymentsList } from "@/features/payments/components/payments-list";
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -24,7 +25,7 @@ export function AdminPortalPage() {
         <Route path="owners" element={<PropietariosList />} />
         <Route path="tenants" element={<InquilinosList />} />
         <Route path="contracts" element={<ContractsList />} />
-        <Route path="payments" element={<PlaceholderPage title="Pagos" />} />
+        <Route path="payments" element={<PaymentsList />} />
         <Route path="caja" element={<PlaceholderPage title="Caja" />} />
       </Route>
     </Routes>

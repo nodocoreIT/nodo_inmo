@@ -22,6 +22,10 @@ vi.mock("@/features/contracts/hooks/use-update-contract", () => ({
   useUpdateContract: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+vi.mock("@/features/payments/hooks/use-generate-installments", () => ({
+  useGenerateInstallments: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
 // Edit dialog imports supabase-backed hooks; stub it for the list test.
 vi.mock("@/features/contracts/components/contract-form-dialog", () => ({
   ContractFormDialog: () => null,

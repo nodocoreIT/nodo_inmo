@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, CalendarPlus } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useContracts } from "@/features/contracts/hooks/use-contracts";
 import type { ContractWithRelations } from "@/features/contracts/hooks/use-contracts";
 import { useDeleteContract } from "@/features/contracts/hooks/use-delete-contract";
 import { useUpdateContract } from "@/features/contracts/hooks/use-update-contract";
+import { useGenerateInstallments } from "@/features/payments/hooks/use-generate-installments";
 import { ContractFormDialog } from "./contract-form-dialog";
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
@@ -44,6 +45,7 @@ export function ContractsList() {
   );
   const deleteContract = useDeleteContract();
   const updateContract = useUpdateContract();
+  const generateInstallments = useGenerateInstallments();
 
   const filtered = (data ?? []).filter((c) =>
     matchesQuery(
@@ -114,7 +116,7 @@ export function ContractsList() {
                 <TableHead>Alquiler</TableHead>
                 <TableHead>Ajuste</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead className="w-24 text-right">Acciones</TableHead>
+                <TableHead className="w-32 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -139,6 +141,24 @@ export function ContractsList() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Generar cuotas"
+                        title="Generar cuotas"
+                        onClick={() =>
+                          generateInstallments.mutate({
+                            contract_id: contract.id,
+                            start_date: contract.start_date,
+                            end_date: contract.end_date,
+                            rent_amount: contract.rent_amount,
+                            currency: contract.currency,
+                          })
+                        }
+                      >
+                        <CalendarPlus className="h-4 w-4" />
+                        <span className="sr-only">Generar cuotas</span>
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
