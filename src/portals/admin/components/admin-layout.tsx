@@ -8,6 +8,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { BrandMark } from "@/shared/components/brand-mark";
 import { useAuth } from "@/app/auth/use-auth";
 import { cn } from "@/shared/lib/utils";
 
@@ -44,9 +45,7 @@ export function AdminLayout() {
       <aside className="flex w-60 flex-shrink-0 flex-col border-r border-border bg-navy">
         {/* Brand mark */}
         <div className="flex h-16 items-center px-5">
-          <span className="font-display text-xl font-bold text-white">
-            nodo<span className="text-brand">inmo</span>
-          </span>
+          <BrandMark onDark iconClassName="h-6 w-6" />
         </div>
 
         {/* Nav */}

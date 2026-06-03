@@ -14,8 +14,8 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
 } from "@/shared/components/ui/card";
+import { BrandMark } from "@/shared/components/brand-mark";
 
 export function LoginPage() {
   const { signInWithPassword } = useAuth();
@@ -51,10 +51,8 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper px-4">
       <Card className="w-full max-w-sm shadow-md">
-        <CardHeader>
-          <CardTitle className="text-center text-2xl text-navy">
-            Nodo Inmo
-          </CardTitle>
+        <CardHeader className="items-center">
+          <BrandMark className="text-2xl" iconClassName="h-9 w-9" />
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
