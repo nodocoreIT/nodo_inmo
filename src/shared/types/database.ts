@@ -63,6 +63,123 @@ export type Database = {
         }
         Relationships: []
       }
+      contract_guarantors: {
+        Row: {
+          contract_id: string
+          created_at: string
+          guarantor_id: string
+          id: string
+          org_id: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          guarantor_id: string
+          id?: string
+          org_id: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          guarantor_id?: string
+          id?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_guarantors_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_guarantors_guarantor_id_fkey"
+            columns: ["guarantor_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          adjustment_index: string
+          adjustment_period_months: number
+          commission_amount: number | null
+          created_at: string
+          currency: string
+          deposit_amount: number | null
+          end_date: string
+          expenses_paid_by: string
+          id: string
+          next_adjustment_date: string | null
+          notes: string | null
+          org_id: string
+          property_id: string
+          rent_amount: number
+          start_date: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          adjustment_index?: string
+          adjustment_period_months?: number
+          commission_amount?: number | null
+          created_at?: string
+          currency?: string
+          deposit_amount?: number | null
+          end_date: string
+          expenses_paid_by?: string
+          id?: string
+          next_adjustment_date?: string | null
+          notes?: string | null
+          org_id: string
+          property_id: string
+          rent_amount: number
+          start_date: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          adjustment_index?: string
+          adjustment_period_months?: number
+          commission_amount?: number | null
+          created_at?: string
+          currency?: string
+          deposit_amount?: number | null
+          end_date?: string
+          expenses_paid_by?: string
+          id?: string
+          next_adjustment_date?: string | null
+          notes?: string | null
+          org_id?: string
+          property_id?: string
+          rent_amount?: number
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       properties: {
         Row: {
           address: string
