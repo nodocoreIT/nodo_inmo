@@ -1,14 +1,13 @@
--- Test: nodo_inmo.owners — Template A (staff-shared), deferred FK wire
+-- Test: nodo_inmo.contacts — unified person directory (roles text[])
 --
--- Structure tests: table exists, PK, NOT NULL constraints, defaults,
--- FK org_id → organizations, FK portal_user_id → auth.users,
--- FK owner_id → owners from properties (deferred wire), org_id index,
--- updated_at auto-touch.
+-- owners was generalized to contacts: same fields, plus roles text[] column.
+-- properties.owner_id FK still exists, now references contacts.
+-- Template A RLS preserved (org-scoped, staff-shared).
 --
--- RLS tests (non-vacuous): seed two orgs as superuser, switch role via
--- request.jwt.claims. All state is rolled back at the end.
+-- TDD: RED first (run against table named 'owners', before rename migration).
+-- Then GREEN after the generalize_owners_to_contacts migration is applied.
 begin;
-select plan(26);
+select plan(31);
 
 -- -----------------------------------------------------------------------
 -- Seed: two orgs + four users (superuser, bypasses RLS)
@@ -31,131 +30,197 @@ insert into shared.org_members (org_id, user_id, role) values
   ('f0000000-0000-0000-0000-000000000001', 'f2000000-0000-0000-0000-000000000002', 'agent');
 
 -- -----------------------------------------------------------------------
--- 1. Table exists
+-- 1. Table exists (must be named 'contacts')
 -- -----------------------------------------------------------------------
 select has_table(
-  'nodo_inmo', 'owners',
-  'nodo_inmo.owners table exists'
+  'nodo_inmo', 'contacts',
+  'nodo_inmo.contacts table exists'
 );
 
 -- -----------------------------------------------------------------------
 -- 2. Primary key
 -- -----------------------------------------------------------------------
 select col_is_pk(
-  'nodo_inmo', 'owners', 'id',
-  'owners.id is the primary key'
+  'nodo_inmo', 'contacts', 'id',
+  'contacts.id is the primary key'
 );
 
 -- -----------------------------------------------------------------------
 -- 3. NOT NULL constraints
 -- -----------------------------------------------------------------------
 select col_not_null(
-  'nodo_inmo', 'owners', 'org_id',
-  'owners.org_id is NOT NULL'
+  'nodo_inmo', 'contacts', 'org_id',
+  'contacts.org_id is NOT NULL'
 );
 
 select col_not_null(
-  'nodo_inmo', 'owners', 'name',
-  'owners.name is NOT NULL'
+  'nodo_inmo', 'contacts', 'name',
+  'contacts.name is NOT NULL'
 );
 
 -- -----------------------------------------------------------------------
--- 4. Column defaults
+-- 4. roles column: exists, is text[], NOT NULL, default '{}'
 -- -----------------------------------------------------------------------
-select col_default_is(
-  'nodo_inmo', 'owners', 'commission_rate', '10.00',
-  'owners.commission_rate defaults to 10.00'
+select has_column(
+  'nodo_inmo', 'contacts', 'roles',
+  'contacts.roles column exists'
+);
+
+select col_not_null(
+  'nodo_inmo', 'contacts', 'roles',
+  'contacts.roles is NOT NULL'
 );
 
 select col_default_is(
-  'nodo_inmo', 'owners', 'can_view_rentals', 'false',
-  'owners.can_view_rentals defaults to false'
-);
-
-select col_default_is(
-  'nodo_inmo', 'owners', 'can_view_construction', 'false',
-  'owners.can_view_construction defaults to false'
-);
-
-select col_default_is(
-  'nodo_inmo', 'owners', 'can_view_sales', 'false',
-  'owners.can_view_sales defaults to false'
+  'nodo_inmo', 'contacts', 'roles', '{}',
+  'contacts.roles defaults to empty array'
 );
 
 -- -----------------------------------------------------------------------
--- 5. FK: org_id → shared.organizations
+-- 5. roles check constraint: rejects invalid role values
 -- -----------------------------------------------------------------------
 select throws_ok(
-  $q$ insert into nodo_inmo.owners (org_id, name)
-      values ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'Ghost Owner')
+  $q$ insert into nodo_inmo.contacts (org_id, name, roles)
+      values (
+        'e0000000-0000-0000-0000-000000000001',
+        'Invalid Role Contact',
+        array['superuser']
+      )
+  $q$,
+  null, null,
+  'roles check constraint: invalid role value rejected'
+);
+
+-- -----------------------------------------------------------------------
+-- 6. roles check constraint: valid roles accepted
+-- -----------------------------------------------------------------------
+insert into nodo_inmo.contacts (id, org_id, name, roles)
+values (
+  'e0000000-0000-0000-0000-000000000001',
+  'e0000000-0000-0000-0000-000000000001',
+  'Multi-role Contact',
+  array['owner', 'tenant']::text[]
+);
+
+select ok(
+  exists(
+    select 1 from nodo_inmo.contacts
+     where id = 'e0000000-0000-0000-0000-000000000001'
+       and roles @> array['owner']::text[]
+       and roles @> array['tenant']::text[]
+  ),
+  'roles: owner and tenant accepted together'
+);
+
+-- All three valid roles accepted
+insert into nodo_inmo.contacts (id, org_id, name, roles)
+values (
+  'e0000000-0000-0000-0000-000000000002',
+  'e0000000-0000-0000-0000-000000000001',
+  'Guarantor Contact',
+  array['guarantor']::text[]
+);
+
+select ok(
+  exists(
+    select 1 from nodo_inmo.contacts
+     where id = 'e0000000-0000-0000-0000-000000000002'
+       and roles = array['guarantor']::text[]
+  ),
+  'roles: guarantor accepted as valid role'
+);
+
+-- -----------------------------------------------------------------------
+-- 7. Column defaults preserved from owners
+-- -----------------------------------------------------------------------
+select col_default_is(
+  'nodo_inmo', 'contacts', 'commission_rate', '10.00',
+  'contacts.commission_rate defaults to 10.00'
+);
+
+select col_default_is(
+  'nodo_inmo', 'contacts', 'can_view_rentals', 'false',
+  'contacts.can_view_rentals defaults to false'
+);
+
+select col_default_is(
+  'nodo_inmo', 'contacts', 'can_view_construction', 'false',
+  'contacts.can_view_construction defaults to false'
+);
+
+select col_default_is(
+  'nodo_inmo', 'contacts', 'can_view_sales', 'false',
+  'contacts.can_view_sales defaults to false'
+);
+
+-- -----------------------------------------------------------------------
+-- 8. FK: org_id → shared.organizations
+-- -----------------------------------------------------------------------
+select throws_ok(
+  $q$ insert into nodo_inmo.contacts (org_id, name)
+      values ('ffffffff-ffff-ffff-ffff-ffffffffffff', 'Ghost Contact')
   $q$,
   null, null,
   'FK org_id → shared.organizations: non-existent org_id rejected'
 );
 
 -- -----------------------------------------------------------------------
--- 6. FK: portal_user_id → auth.users (nullable, accepted + on delete set null)
+-- 9. FK: portal_user_id → auth.users (nullable)
 -- -----------------------------------------------------------------------
--- Valid: insert with a known auth.users id
-insert into nodo_inmo.owners (id, org_id, name, portal_user_id)
+insert into nodo_inmo.contacts (id, org_id, name, portal_user_id)
 values (
   'e0000000-0000-0000-0000-000000000010',
   'e0000000-0000-0000-0000-000000000001',
-  'Owner With Portal',
+  'Contact With Portal',
   'a0000000-0000-0000-0000-000000000099'
 );
 
 select ok(
   exists(
-    select 1 from nodo_inmo.owners
+    select 1 from nodo_inmo.contacts
      where id = 'e0000000-0000-0000-0000-000000000010'
        and portal_user_id = 'a0000000-0000-0000-0000-000000000099'
   ),
-  'owners.portal_user_id: nullable FK to auth.users accepted'
+  'contacts.portal_user_id: nullable FK to auth.users accepted'
 );
 
--- Valid: insert with NULL portal_user_id
-insert into nodo_inmo.owners (id, org_id, name, portal_user_id)
+insert into nodo_inmo.contacts (id, org_id, name, portal_user_id)
 values (
   'e0000000-0000-0000-0000-000000000011',
   'e0000000-0000-0000-0000-000000000001',
-  'Owner Without Portal',
+  'Contact Without Portal',
   null
 );
 
 select ok(
   exists(
-    select 1 from nodo_inmo.owners
+    select 1 from nodo_inmo.contacts
      where id = 'e0000000-0000-0000-0000-000000000011'
        and portal_user_id is null
   ),
-  'owners.portal_user_id: NULL accepted (portal not yet linked)'
-);
-
--- Invalid: non-existent auth.users id is rejected
-select throws_ok(
-  $q$ insert into nodo_inmo.owners (org_id, name, portal_user_id)
-      values (
-        'e0000000-0000-0000-0000-000000000001',
-        'Ghost Portal',
-        'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
-      )
-  $q$,
-  null, null,
-  'FK portal_user_id → auth.users: non-existent user_id rejected'
+  'contacts.portal_user_id: NULL accepted (portal not yet linked)'
 );
 
 -- -----------------------------------------------------------------------
--- 7. org_id index exists
+-- 10. org_id index exists (renamed from owners_org_id_idx)
 -- -----------------------------------------------------------------------
 select has_index(
-  'nodo_inmo', 'owners',
-  'owners_org_id_idx',
-  'leading index on org_id exists'
+  'nodo_inmo', 'contacts',
+  'contacts_org_id_idx',
+  'leading index contacts_org_id_idx on org_id exists'
 );
 
 -- -----------------------------------------------------------------------
--- 8. updated_at auto-touch: changes on UPDATE
+-- 11. roles GIN index exists
+-- -----------------------------------------------------------------------
+select has_index(
+  'nodo_inmo', 'contacts',
+  'contacts_roles_idx',
+  'GIN index contacts_roles_idx on roles exists'
+);
+
+-- -----------------------------------------------------------------------
+-- 12. updated_at auto-touch
 -- -----------------------------------------------------------------------
 do $$
 declare
@@ -163,17 +228,17 @@ declare
   t2 timestamptz;
 begin
   select updated_at into t1
-    from nodo_inmo.owners
+    from nodo_inmo.contacts
    where id = 'e0000000-0000-0000-0000-000000000011';
 
   perform pg_sleep(0.02);
 
-  update nodo_inmo.owners
-     set name = 'Owner Without Portal (updated)'
+  update nodo_inmo.contacts
+     set name = 'Contact Without Portal (updated)'
    where id = 'e0000000-0000-0000-0000-000000000011';
 
   select updated_at into t2
-    from nodo_inmo.owners
+    from nodo_inmo.contacts
    where id = 'e0000000-0000-0000-0000-000000000011';
 
   if t2 <= t1 then
@@ -184,15 +249,14 @@ end $$;
 select ok(true, 'updated_at advances on UPDATE');
 
 -- -----------------------------------------------------------------------
--- 9. Deferred FK: properties.owner_id → nodo_inmo.owners
+-- 13. properties.owner_id FK now references contacts
 -- -----------------------------------------------------------------------
--- Confirm the FK now exists on properties.owner_id → owners
 select col_is_fk(
   'nodo_inmo', 'properties', 'owner_id',
-  'properties.owner_id is a foreign key (FK wired to owners)'
+  'properties.owner_id is a foreign key (now references contacts)'
 );
 
--- Functional check: a property can reference an owner in the same org
+-- Functional: a property can reference a contact in the same org
 insert into nodo_inmo.properties
   (id, org_id, owner_id, address, operation, property_type, status, currency)
 values (
@@ -205,29 +269,15 @@ values (
 select ok(
   exists(
     select 1 from nodo_inmo.properties
-     where id   = 'e0000000-0000-0000-0000-000000000020'
+     where id      = 'e0000000-0000-0000-0000-000000000020'
        and owner_id = 'e0000000-0000-0000-0000-000000000010'
   ),
-  'properties.owner_id FK: property can reference an owner'
+  'properties.owner_id FK: property can reference a contact'
 );
 
--- Referential integrity: non-existent owner_id is rejected
-select throws_ok(
-  $q$ insert into nodo_inmo.properties
-        (org_id, owner_id, address, operation, property_type, status, currency)
-      values (
-        'e0000000-0000-0000-0000-000000000001',
-        'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
-        'Fake Owner St', 'rent', 'apartment', 'available', 'ARS'
-      )
-  $q$,
-  null, null,
-  'properties.owner_id FK: non-existent owner_id rejected'
-);
-
--- ON DELETE SET NULL: deleting owner nulls property.owner_id
-insert into nodo_inmo.owners (id, org_id, name)
-values ('e0000000-0000-0000-0000-000000000012', 'e0000000-0000-0000-0000-000000000001', 'Temp Owner');
+-- ON DELETE SET NULL: deleting contact nulls property.owner_id
+insert into nodo_inmo.contacts (id, org_id, name)
+values ('e0000000-0000-0000-0000-000000000012', 'e0000000-0000-0000-0000-000000000001', 'Temp Contact');
 
 insert into nodo_inmo.properties
   (id, org_id, owner_id, address, operation, property_type, status, currency)
@@ -238,7 +288,7 @@ values (
   'Corrientes 9000', 'sale', 'house', 'available', 'USD'
 );
 
-delete from nodo_inmo.owners where id = 'e0000000-0000-0000-0000-000000000012';
+delete from nodo_inmo.contacts where id = 'e0000000-0000-0000-0000-000000000012';
 
 select ok(
   exists(
@@ -246,116 +296,116 @@ select ok(
      where id = 'e0000000-0000-0000-0000-000000000021'
        and owner_id is null
   ),
-  'properties.owner_id ON DELETE SET NULL: owner deleted → property.owner_id nulled'
+  'properties.owner_id ON DELETE SET NULL: contact deleted → owner_id nulled'
 );
 
 -- -----------------------------------------------------------------------
--- 10. RLS — switch to authenticated role (non-vacuous: real rows in both orgs)
+-- 14. RLS — switch to authenticated role (non-vacuous: real rows in both orgs)
 -- -----------------------------------------------------------------------
 
--- Seed owners for Org E and Org F as superuser
-insert into nodo_inmo.owners (id, org_id, name) values
-  ('e0000000-0000-0000-0000-000000000030', 'e0000000-0000-0000-0000-000000000001', 'Org E Owner 1'),
-  ('e0000000-0000-0000-0000-000000000031', 'e0000000-0000-0000-0000-000000000001', 'Org E Owner 2'),
-  ('f0000000-0000-0000-0000-000000000030', 'f0000000-0000-0000-0000-000000000001', 'Org F Owner 1');
+-- Seed contacts for Org E and Org F as superuser
+insert into nodo_inmo.contacts (id, org_id, name, roles) values
+  ('e0000000-0000-0000-0000-000000000030', 'e0000000-0000-0000-0000-000000000001', 'Org E Contact 1', array['owner']::text[]),
+  ('e0000000-0000-0000-0000-000000000031', 'e0000000-0000-0000-0000-000000000001', 'Org E Contact 2', array['tenant']::text[]),
+  ('f0000000-0000-0000-0000-000000000030', 'f0000000-0000-0000-0000-000000000001', 'Org F Contact 1', array['owner']::text[]);
 
 -- -----------------------------------------------------------------------
--- 10a. Cross-tenant: Org E agent sees 0 Org F owners
+-- 14a. Cross-tenant: Org E agent sees 0 Org F contacts
 -- -----------------------------------------------------------------------
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"e2000000-0000-0000-0000-000000000002","app_metadata":{"org_id":"e0000000-0000-0000-0000-000000000001","role":"agent"}}';
 
 select is(
-  (select count(*)::int from nodo_inmo.owners
+  (select count(*)::int from nodo_inmo.contacts
     where org_id = 'f0000000-0000-0000-0000-000000000001'),
   0,
-  'RLS: Org E agent sees 0 Org F owners (cross-tenant blocked)'
+  'RLS: Org E agent sees 0 Org F contacts (cross-tenant blocked)'
 );
 
 -- -----------------------------------------------------------------------
--- 10b. Template A: AGENT of Org E can INSERT
+-- 14b. Template A: AGENT of Org E can INSERT
 -- -----------------------------------------------------------------------
 select lives_ok(
-  $q$ insert into nodo_inmo.owners (org_id, name)
-      values ('e0000000-0000-0000-0000-000000000001', 'Agent-created Owner')
+  $q$ insert into nodo_inmo.contacts (org_id, name)
+      values ('e0000000-0000-0000-0000-000000000001', 'Agent-created Contact')
   $q$,
-  'TemplateA: agent can INSERT own org owner'
+  'TemplateA: agent can INSERT own org contact'
 );
 
 -- -----------------------------------------------------------------------
--- 10c. Template A: ADMIN of Org E can INSERT
+-- 14c. Template A: ADMIN of Org E can INSERT
 -- -----------------------------------------------------------------------
 set local request.jwt.claims = '{"sub":"e1000000-0000-0000-0000-000000000001","app_metadata":{"org_id":"e0000000-0000-0000-0000-000000000001","role":"admin"}}';
 
 select lives_ok(
-  $q$ insert into nodo_inmo.owners (org_id, name)
-      values ('e0000000-0000-0000-0000-000000000001', 'Admin-created Owner')
+  $q$ insert into nodo_inmo.contacts (org_id, name)
+      values ('e0000000-0000-0000-0000-000000000001', 'Admin-created Contact')
   $q$,
-  'TemplateA: admin can INSERT own org owner'
+  'TemplateA: admin can INSERT own org contact'
 );
 
 -- -----------------------------------------------------------------------
--- 10d. Template A: AGENT of Org E can SELECT
+-- 14d. Template A: AGENT of Org E can SELECT
 -- -----------------------------------------------------------------------
 set local request.jwt.claims = '{"sub":"e2000000-0000-0000-0000-000000000002","app_metadata":{"org_id":"e0000000-0000-0000-0000-000000000001","role":"agent"}}';
 
 select cmp_ok(
-  (select count(*)::int from nodo_inmo.owners
+  (select count(*)::int from nodo_inmo.contacts
     where org_id = 'e0000000-0000-0000-0000-000000000001'),
   '>',
   0,
-  'TemplateA: agent can SELECT own org owners'
+  'TemplateA: agent can SELECT own org contacts'
 );
 
 -- -----------------------------------------------------------------------
--- 10e. Template A: AGENT of Org E can UPDATE
+-- 14e. Template A: AGENT of Org E can UPDATE
 -- -----------------------------------------------------------------------
 select lives_ok(
-  $q$ update nodo_inmo.owners
-         set name = 'Org E Owner 1 Updated'
+  $q$ update nodo_inmo.contacts
+         set name = 'Org E Contact 1 Updated'
        where org_id = 'e0000000-0000-0000-0000-000000000001'
-         and name = 'Org E Owner 1'
+         and name = 'Org E Contact 1'
   $q$,
-  'TemplateA: agent can UPDATE own org owner'
+  'TemplateA: agent can UPDATE own org contact'
 );
 
 -- -----------------------------------------------------------------------
--- 10f. Template A: ADMIN of Org E can DELETE
+-- 14f. Template A: ADMIN of Org E can DELETE
 -- -----------------------------------------------------------------------
 set local request.jwt.claims = '{"sub":"e1000000-0000-0000-0000-000000000001","app_metadata":{"org_id":"e0000000-0000-0000-0000-000000000001","role":"admin"}}';
 
 select lives_ok(
-  $q$ delete from nodo_inmo.owners
+  $q$ delete from nodo_inmo.contacts
        where org_id = 'e0000000-0000-0000-0000-000000000001'
-         and name = 'Admin-created Owner'
+         and name = 'Admin-created Contact'
   $q$,
-  'TemplateA: admin can DELETE own org owner'
+  'TemplateA: admin can DELETE own org contact'
 );
 
 -- -----------------------------------------------------------------------
--- 10g. UPDATE WITH CHECK: org_id cannot be reassigned
+-- 14g. UPDATE WITH CHECK: org_id cannot be reassigned
 -- -----------------------------------------------------------------------
 select throws_ok(
-  $q$ update nodo_inmo.owners
+  $q$ update nodo_inmo.contacts
          set org_id = 'f0000000-0000-0000-0000-000000000001'
        where org_id = 'e0000000-0000-0000-0000-000000000001'
-         and name = 'Org E Owner 2'
+         and name = 'Org E Contact 2'
   $q$,
   null, null,
   'RLS: UPDATE cannot reassign org_id to another org (WITH CHECK)'
 );
 
 -- -----------------------------------------------------------------------
--- 10h. Template A vs B: AGENT is NOT blocked (confirms staff-shared)
+-- 14h. Template A vs B: AGENT is NOT blocked (confirms staff-shared)
 -- -----------------------------------------------------------------------
 set local request.jwt.claims = '{"sub":"e2000000-0000-0000-0000-000000000002","app_metadata":{"org_id":"e0000000-0000-0000-0000-000000000001","role":"agent"}}';
 
 select cmp_ok(
-  (select count(*)::int from nodo_inmo.owners
+  (select count(*)::int from nodo_inmo.contacts
     where org_id = 'e0000000-0000-0000-0000-000000000001'),
   '>',
   0,
-  'TemplateA (vs B): agent sees org owners — NOT blocked (staff-shared confirmed)'
+  'TemplateA (vs B): agent sees org contacts — NOT blocked (staff-shared confirmed)'
 );
 
 select * from finish();

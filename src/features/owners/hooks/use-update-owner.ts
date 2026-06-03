@@ -3,7 +3,7 @@ import { supabase } from "@/shared/lib/supabase";
 import type { Database } from "@/shared/types/database";
 import { OWNERS_QUERY_KEY } from "./use-owners";
 
-type OwnerUpdate = Database["nodo_inmo"]["Tables"]["owners"]["Update"];
+type OwnerUpdate = Database["nodo_inmo"]["Tables"]["contacts"]["Update"];
 
 export type UpdateOwnerInput = Omit<OwnerUpdate, "org_id"> & {
   id: string;
@@ -16,7 +16,7 @@ export function useUpdateOwner() {
     mutationFn: async ({ id, ...fields }: UpdateOwnerInput) => {
       const { data, error } = await supabase
         .schema("nodo_inmo")
-        .from("owners")
+        .from("contacts")
         .update(fields)
         .eq("id", id);
 

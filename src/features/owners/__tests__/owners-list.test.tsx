@@ -46,7 +46,7 @@ vi.mock("@/app/auth/use-auth", () => ({
 const mockUseOwners = vi.fn();
 vi.mock("@/features/owners/hooks/use-owners", () => ({
   useOwners: () => mockUseOwners(),
-  OWNERS_QUERY_KEY: ["nodo_inmo", "owners"],
+  OWNERS_QUERY_KEY: ["nodo_inmo", "contacts"],
 }));
 
 import { OwnersList } from "@/features/owners/components/owners-list";

@@ -4,7 +4,7 @@ import { useAuth } from "@/app/auth/use-auth";
 import type { Database } from "@/shared/types/database";
 import { OWNERS_QUERY_KEY } from "./use-owners";
 
-type OwnerInsert = Database["nodo_inmo"]["Tables"]["owners"]["Insert"];
+type OwnerInsert = Database["nodo_inmo"]["Tables"]["contacts"]["Insert"];
 
 export type CreateOwnerInput = Omit<OwnerInsert, "org_id">;
 
@@ -18,7 +18,7 @@ export function useCreateOwner() {
 
       const { data, error } = await supabase
         .schema("nodo_inmo")
-        .from("owners")
+        .from("contacts")
         .insert({ ...input, org_id: orgId });
 
       if (error) throw error;

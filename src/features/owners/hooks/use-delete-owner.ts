@@ -9,7 +9,7 @@ export function useDeleteOwner() {
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .schema("nodo_inmo")
-        .from("owners")
+        .from("contacts")
         .delete()
         .eq("id", id);
 

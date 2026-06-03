@@ -180,7 +180,7 @@ vi.mock("@/shared/components/ui/alert-dialog", () => {
 const mockUseOwners = vi.fn();
 vi.mock("@/features/owners/hooks/use-owners", () => ({
   useOwners: () => mockUseOwners(),
-  OWNERS_QUERY_KEY: ["nodo_inmo", "owners"],
+  OWNERS_QUERY_KEY: ["nodo_inmo", "contacts"],
 }));
 
 const mockUpdateMutateAsync = vi.fn();

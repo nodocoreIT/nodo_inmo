@@ -9,7 +9,7 @@ export type Json =
 export type Database = {
   nodo_inmo: {
     Tables: {
-      owners: {
+      contacts: {
         Row: {
           address: string | null
           can_view_construction: boolean
@@ -24,6 +24,7 @@ export type Database = {
           org_id: string
           phone: string | null
           portal_user_id: string | null
+          roles: string[]
           updated_at: string
         }
         Insert: {
@@ -40,6 +41,7 @@ export type Database = {
           org_id: string
           phone?: string | null
           portal_user_id?: string | null
+          roles?: string[]
           updated_at?: string
         }
         Update: {
@@ -56,6 +58,7 @@ export type Database = {
           org_id?: string
           phone?: string | null
           portal_user_id?: string | null
+          roles?: string[]
           updated_at?: string
         }
         Relationships: []
@@ -117,10 +120,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "properties_owner_id_fkey"
+            foreignKeyName: "properties_owner_contact_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
-            referencedRelation: "owners"
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]

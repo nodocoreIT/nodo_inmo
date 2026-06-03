@@ -175,7 +175,7 @@ vi.mock("@/features/owners/hooks/use-owners", () => ({
     isLoading: false,
     isError: false,
   }),
-  OWNERS_QUERY_KEY: ["nodo_inmo", "owners"],
+  OWNERS_QUERY_KEY: ["nodo_inmo", "contacts"],
 }));
 
 // ── Mock create property mutation ─────────────────────────────────────────────

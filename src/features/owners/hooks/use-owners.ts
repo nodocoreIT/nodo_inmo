@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/shared/lib/supabase";
 import type { Database } from "@/shared/types/database";
 
-export type OwnerRow = Database["nodo_inmo"]["Tables"]["owners"]["Row"];
+export type OwnerRow = Database["nodo_inmo"]["Tables"]["contacts"]["Row"];
 
-export const OWNERS_QUERY_KEY = ["nodo_inmo", "owners"] as const;
+export const OWNERS_QUERY_KEY = ["nodo_inmo", "contacts"] as const;
 
 /**
  * Fetch all owners for the current user's org.
@@ -16,7 +16,7 @@ export function useOwners() {
     queryFn: async () => {
       const { data, error } = await supabase
         .schema("nodo_inmo")
-        .from("owners")
+        .from("contacts")
         .select("*")
         .order("name", { ascending: true });
 
