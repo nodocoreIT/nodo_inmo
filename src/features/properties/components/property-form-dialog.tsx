@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import type { PropertyRow } from "@/features/properties/hooks/use-properties";
-import { useOwners } from "@/features/owners/hooks/use-owners";
+import { useContacts } from "@/features/contacts/hooks/use-contacts";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -113,7 +113,7 @@ export function PropertyFormDialog({
   isPending = false,
 }: PropertyFormDialogProps) {
   const isEdit = !!property;
-  const { data: owners = [] } = useOwners();
+  const { data: owners = [] } = useContacts("owner");
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(schema) as any,

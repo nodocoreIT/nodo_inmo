@@ -23,6 +23,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: "/admin/properties", label: "Propiedades", icon: Building2 },
   { to: "/admin/owners", label: "Propietarios", icon: Users },
+  { to: "/admin/tenants", label: "Inquilinos", icon: Users },
   { to: "/admin/contracts", label: "Contratos", icon: FileText },
   { to: "/admin/payments", label: "Pagos", icon: CreditCard },
   { to: "/admin/caja", label: "Caja", icon: Wallet, adminOnly: true },

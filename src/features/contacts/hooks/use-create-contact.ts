@@ -2,18 +2,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/shared/lib/supabase";
 import { useAuth } from "@/app/auth/use-auth";
 import type { Database } from "@/shared/types/database";
-import { OWNERS_QUERY_KEY } from "./use-owners";
+import { CONTACTS_QUERY_KEY } from "./use-contacts";
 
-type OwnerInsert = Database["nodo_inmo"]["Tables"]["contacts"]["Insert"];
+type ContactInsert = Database["nodo_inmo"]["Tables"]["contacts"]["Insert"];
 
-export type CreateOwnerInput = Omit<OwnerInsert, "org_id">;
+export type CreateContactInput = Omit<ContactInsert, "org_id">;
 
-export function useCreateOwner() {
+export function useCreateContact() {
   const queryClient = useQueryClient();
   const { orgId } = useAuth();
 
   return useMutation({
-    mutationFn: async (input: CreateOwnerInput) => {
+    mutationFn: async (input: CreateContactInput) => {
       if (!orgId) throw new Error("No org_id — user not fully provisioned");
 
       const { data, error } = await supabase
@@ -25,7 +25,7 @@ export function useCreateOwner() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: OWNERS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CONTACTS_QUERY_KEY });
     },
   });
 }

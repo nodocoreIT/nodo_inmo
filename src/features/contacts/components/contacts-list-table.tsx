@@ -1,0 +1,242 @@
+/**
+ * Reusable contacts table + action buttons.
+ * PropietariosList and InquilinosList both render this,
+ * passing different column configs.
+ */
+import { useState } from "react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/shared/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/shared/components/ui/alert-dialog";
+import { ContactFormDialog } from "./contact-form-dialog";
+import type { ContactRow, ContactRole } from "@/features/contacts/hooks/use-contacts";
+import { useCreateContact } from "@/features/contacts/hooks/use-create-contact";
+import { useUpdateContact } from "@/features/contacts/hooks/use-update-contact";
+import { useDeleteContact } from "@/features/contacts/hooks/use-delete-contact";
+
+// ── Column config ─────────────────────────────────────────────────────────────
+
+export interface ContactColumnConfig {
+  /** Show Comisión column */
+  showCommission: boolean;
+}
+
+// ── List props ────────────────────────────────────────────────────────────────
+
+export interface ContactsListTableProps {
+  /** Page heading */
+  heading: string;
+  /** Sub-heading description */
+  subheading: string;
+  /** Button label for creating a new contact */
+  createLabel: string;
+  /** Empty state message */
+  emptyMessage: string;
+  /** Role assigned to newly created contacts */
+  defaultRole: ContactRole;
+  columnConfig: ContactColumnConfig;
+  data: ContactRow[] | undefined;
+  isLoading: boolean;
+  isError: boolean;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function ContactsListTable({
+  heading,
+  subheading,
+  createLabel,
+  emptyMessage,
+  defaultRole,
+  columnConfig,
+  data,
+  isLoading,
+  isError,
+}: ContactsListTableProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editContact, setEditContact] = useState<ContactRow | null>(null);
+
+  const createContact = useCreateContact();
+  const updateContact = useUpdateContact();
+  const deleteContact = useDeleteContact();
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-navy">{heading}</h2>
+          <p className="mt-1 text-sm text-slate2">{subheading}</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+          <Plus className="h-4 w-4" />
+          {createLabel}
+        </Button>
+      </div>
+
+      {/* Loading */}
+      {isLoading && (
+        <div
+          role="status"
+          aria-label={`Cargando ${heading.toLowerCase()}`}
+          className="flex items-center justify-center py-16"
+        >
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
+          <span className="sr-only">Cargando…</span>
+        </div>
+      )}
+
+      {/* Error */}
+      {isError && (
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          Error al cargar los datos. Intentá de nuevo.
+        </div>
+      )}
+
+      {/* Empty */}
+      {!isLoading && !isError && data?.length === 0 && (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-mist py-16 text-center">
+          <p className="text-sm font-medium text-slate2">{emptyMessage}</p>
+          <p className="text-xs text-slate2-300">
+            Hacé clic en "{createLabel}" para empezar.
+          </p>
+        </div>
+      )}
+
+      {/* Table */}
+      {!isLoading && !isError && data && data.length > 0 && (
+        <div className="rounded-md border border-border bg-card shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>DNI</TableHead>
+                <TableHead>Teléfono</TableHead>
+                <TableHead>Email</TableHead>
+                {columnConfig.showCommission && (
+                  <TableHead>Comisión</TableHead>
+                )}
+                <TableHead className="w-24 text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((contact) => (
+                <TableRow key={contact.id}>
+                  <TableCell className="font-medium">{contact.name}</TableCell>
+                  <TableCell>{contact.dni ?? "—"}</TableCell>
+                  <TableCell>{contact.phone ?? "—"}</TableCell>
+                  <TableCell>{contact.email ?? "—"}</TableCell>
+                  {columnConfig.showCommission && (
+                    <TableCell>{contact.commission_rate}%</TableCell>
+                  )}
+                  <TableCell className="text-right">
+                    <RowActions
+                      contact={contact}
+                      onEdit={() => setEditContact(contact)}
+                      onDeleteConfirm={() => deleteContact.mutateAsync(contact.id)}
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* Create dialog */}
+      <ContactFormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        defaultRole={defaultRole}
+        onSuccess={() => setCreateOpen(false)}
+        onSubmit={(payload) => createContact.mutateAsync(payload).then(() => undefined)}
+        isPending={createContact.isPending}
+      />
+
+      {/* Edit dialog */}
+      {editContact && (
+        <ContactFormDialog
+          open={!!editContact}
+          onOpenChange={(open) => {
+            if (!open) setEditContact(null);
+          }}
+          contact={editContact}
+          onSuccess={() => setEditContact(null)}
+          onSubmit={(payload, c) =>
+            updateContact
+              .mutateAsync({ id: c!.id, ...payload })
+              .then(() => undefined)
+          }
+          isPending={updateContact.isPending}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Row actions ───────────────────────────────────────────────────────────────
+
+interface RowActionsProps {
+  contact: ContactRow;
+  onEdit: () => void;
+  onDeleteConfirm: () => void;
+}
+
+function RowActions({ onEdit, onDeleteConfirm }: RowActionsProps) {
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label="Editar"
+        onClick={onEdit}
+      >
+        <Pencil className="h-4 w-4" />
+        <span className="sr-only">Editar</span>
+      </Button>
+
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="ghost" size="sm" aria-label="Eliminar">
+            <Trash2 className="h-4 w-4 text-destructive" />
+            <span className="sr-only">Eliminar</span>
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este contacto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={onDeleteConfirm}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

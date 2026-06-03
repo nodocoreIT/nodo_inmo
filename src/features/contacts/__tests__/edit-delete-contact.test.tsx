@@ -1,22 +1,17 @@
 /**
- * TDD — Edit & Delete owner row actions
- *
+ * TDD — Edit & Delete contact row actions (via PropietariosList)
  * Tests:
- *   Edit:
- *     - clicking "Editar" opens form dialog prefilled with the owner values
- *     - submitting the edit form calls useUpdateOwner with the changed fields and the right id
- *     - org_id must NOT be sent in the update payload
- *   Delete:
- *     - clicking "Eliminar" shows a confirm AlertDialog with the expected copy
- *     - confirming calls useDeleteOwner with the right id
- *     - cancelling does NOT call delete
+ *   - clicking Editar opens form dialog prefilled with contact name
+ *   - submitting edit form calls useUpdateContact with id + changed fields, no org_id
+ *   - clicking Eliminar shows confirm AlertDialog with Spanish copy
+ *   - confirming delete calls useDeleteContact with right id
+ *   - cancelling does NOT call delete
  */
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// ── Mock supabase ─────────────────────────────────────────────────────────────
 vi.mock("@/shared/lib/supabase", () => ({
   supabase: {
     schema: vi.fn(() => ({
@@ -28,9 +23,7 @@ vi.mock("@/shared/lib/supabase", () => ({
       })),
     })),
     auth: {
-      getSession: vi
-        .fn()
-        .mockResolvedValue({ data: { session: null }, error: null }),
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       onAuthStateChange: vi.fn().mockReturnValue({
         data: { subscription: { unsubscribe: vi.fn(), id: "s1" } },
       }),
@@ -38,7 +31,6 @@ vi.mock("@/shared/lib/supabase", () => ({
   },
 }));
 
-// ── Mock useAuth ──────────────────────────────────────────────────────────────
 vi.mock("@/app/auth/use-auth", () => ({
   useAuth: () => ({
     user: { email: "admin@nodo.com" },
@@ -51,7 +43,7 @@ vi.mock("@/app/auth/use-auth", () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// ── Mock AlertDialog with simple passthrough ──────────────────────────────────
+// AlertDialog mock (same pattern as owner tests)
 vi.mock("@/shared/components/ui/alert-dialog", () => {
   const React = require("react");
 
@@ -81,10 +73,7 @@ vi.mock("@/shared/components/ui/alert-dialog", () => {
                   _alertOpen?: boolean;
                   _alertSetOpen?: (v: boolean) => void;
                 }>,
-                {
-                  _alertOpen: localOpen,
-                  _alertSetOpen: handleChange,
-                },
+                { _alertOpen: localOpen, _alertSetOpen: handleChange },
               )
             : child,
         )}
@@ -112,21 +101,10 @@ vi.mock("@/shared/components/ui/alert-dialog", () => {
     _alertOpen?: boolean;
   }) => (_alertOpen ? <div role="alertdialog">{children}</div> : null);
 
-  const AlertDialogHeader = ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  );
-  const AlertDialogFooter = ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  );
-  const AlertDialogTitle = ({ children }: { children: React.ReactNode }) => (
-    <h2>{children}</h2>
-  );
-  const AlertDialogDescription = ({
-    children,
-  }: {
-    children: React.ReactNode;
-  }) => <p>{children}</p>;
-
+  const AlertDialogHeader = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+  const AlertDialogFooter = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+  const AlertDialogTitle = ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>;
+  const AlertDialogDescription = ({ children }: { children: React.ReactNode }) => <p>{children}</p>;
   const AlertDialogAction = ({
     children,
     onClick,
@@ -135,11 +113,7 @@ vi.mock("@/shared/components/ui/alert-dialog", () => {
     children: React.ReactNode;
     onClick?: React.MouseEventHandler;
     className?: string;
-  }) => (
-    <button className={className} onClick={onClick}>
-      {children}
-    </button>
-  );
+  }) => <button className={className} onClick={onClick}>{children}</button>;
 
   const AlertDialogCancel = ({
     children,
@@ -176,41 +150,37 @@ vi.mock("@/shared/components/ui/alert-dialog", () => {
   };
 });
 
-// ── Mock hooks ────────────────────────────────────────────────────────────────
-const mockUseOwners = vi.fn();
-vi.mock("@/features/owners/hooks/use-owners", () => ({
-  useOwners: () => mockUseOwners(),
-  OWNERS_QUERY_KEY: ["nodo_inmo", "contacts"],
+const mockUseContacts = vi.fn();
+vi.mock("@/features/contacts/hooks/use-contacts", () => ({
+  useContacts: (...args: unknown[]) => mockUseContacts(...args),
+  CONTACTS_QUERY_KEY: ["nodo_inmo", "contacts"],
+}));
+
+vi.mock("@/features/contacts/hooks/use-create-contact", () => ({
+  useCreateContact: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 const mockUpdateMutateAsync = vi.fn();
-vi.mock("@/features/owners/hooks/use-update-owner", () => ({
-  useUpdateOwner: () => ({
-    mutateAsync: mockUpdateMutateAsync,
-    isPending: false,
-  }),
+vi.mock("@/features/contacts/hooks/use-update-contact", () => ({
+  useUpdateContact: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: false }),
 }));
 
 const mockDeleteMutateAsync = vi.fn();
-vi.mock("@/features/owners/hooks/use-delete-owner", () => ({
-  useDeleteOwner: () => ({
-    mutateAsync: mockDeleteMutateAsync,
-    isPending: false,
-  }),
+vi.mock("@/features/contacts/hooks/use-delete-contact", () => ({
+  useDeleteContact: () => ({ mutateAsync: mockDeleteMutateAsync, isPending: false }),
 }));
 
-// Import AFTER all mocks
-import { OwnersList } from "@/features/owners/components/owners-list";
+import { PropietariosList } from "@/features/contacts/components/propietarios-list";
 
-// ── Fixture ───────────────────────────────────────────────────────────────────
-const fixtureOwner = {
-  id: "owner-111",
+const fixtureContact = {
+  id: "contact-111",
   name: "Roberto Fernández",
   dni: "25-88866544-3",
   phone: "11-3333-0099",
   email: "roberto@example.com",
   address: "Lavalle 500",
   commission_rate: 8,
+  roles: ["owner"],
   can_view_rentals: true,
   can_view_construction: false,
   can_view_sales: true,
@@ -228,22 +198,18 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 function renderList() {
-  mockUseOwners.mockReturnValue({
-    data: [fixtureOwner],
+  mockUseContacts.mockReturnValue({
+    data: [fixtureContact],
     isLoading: false,
     isError: false,
-    error: null,
   });
-  return render(<OwnersList />, { wrapper });
+  return render(<PropietariosList />, { wrapper });
 }
 
-// ── Edit tests ────────────────────────────────────────────────────────────────
-describe("OwnersList — Edit row action", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+describe("PropietariosList — Edit row action", () => {
+  beforeEach(() => vi.clearAllMocks());
 
-  it("clicking Editar opens the form dialog prefilled with the owner name", async () => {
+  it("clicking Editar opens form dialog prefilled with contact name", async () => {
     renderList();
     await userEvent.click(screen.getByRole("button", { name: /editar/i }));
     await waitFor(() => {
@@ -252,24 +218,18 @@ describe("OwnersList — Edit row action", () => {
     });
   });
 
-  it("clicking Editar prefills all scalar fields (DNI, phone, commission_rate)", async () => {
+  it("clicking Editar prefills DNI, phone, commission_rate", async () => {
     renderList();
     await userEvent.click(screen.getByRole("button", { name: /editar/i }));
     await waitFor(() => {
-      expect((screen.getByLabelText(/dni/i) as HTMLInputElement).value).toBe(
-        "25-88866544-3",
-      );
-      expect(
-        (screen.getByLabelText(/teléfono/i) as HTMLInputElement).value,
-      ).toBe("11-3333-0099");
-      expect(
-        (screen.getByLabelText(/comisión/i) as HTMLInputElement).value,
-      ).toBe("8");
+      expect((screen.getByLabelText(/dni/i) as HTMLInputElement).value).toBe("25-88866544-3");
+      expect((screen.getByLabelText(/teléfono/i) as HTMLInputElement).value).toBe("11-3333-0099");
+      expect((screen.getByLabelText(/comisión/i) as HTMLInputElement).value).toBe("8");
     });
   });
 
-  it("submitting edit form calls useUpdateOwner with id + changed fields, no org_id", async () => {
-    mockUpdateMutateAsync.mockResolvedValue({ id: "owner-111" });
+  it("submitting edit form calls useUpdateContact with id + changed fields, no org_id", async () => {
+    mockUpdateMutateAsync.mockResolvedValue({ id: "contact-111" });
     renderList();
     await userEvent.click(screen.getByRole("button", { name: /editar/i }));
 
@@ -279,36 +239,27 @@ describe("OwnersList — Edit row action", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /guardar/i }));
 
-    await waitFor(() => {
-      expect(mockUpdateMutateAsync).toHaveBeenCalledOnce();
-    });
+    await waitFor(() => expect(mockUpdateMutateAsync).toHaveBeenCalledOnce());
     const [callArgs] = mockUpdateMutateAsync.mock.calls[0];
-    expect(callArgs).toMatchObject({ id: "owner-111", name: "Roberto Actualizado" });
+    expect(callArgs).toMatchObject({ id: "contact-111", name: "Roberto Actualizado" });
     expect(callArgs).not.toHaveProperty("org_id");
   });
 });
 
-// ── Delete tests ──────────────────────────────────────────────────────────────
-describe("OwnersList — Delete row action", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+describe("PropietariosList — Delete row action", () => {
+  beforeEach(() => vi.clearAllMocks());
 
-  it("clicking Eliminar shows the confirm AlertDialog with Spanish copy", async () => {
+  it("clicking Eliminar shows confirm AlertDialog with Spanish copy", async () => {
     renderList();
     await userEvent.click(screen.getByRole("button", { name: /eliminar/i }));
     await waitFor(() => {
       expect(screen.getByRole("alertdialog")).toBeInTheDocument();
-      expect(
-        screen.getByText(/¿eliminar este propietario\?/i),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/esta acción no se puede deshacer/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/¿eliminar este contacto\?/i)).toBeInTheDocument();
+      expect(screen.getByText(/esta acción no se puede deshacer/i)).toBeInTheDocument();
     });
   });
 
-  it("confirming delete calls useDeleteOwner with the right id", async () => {
+  it("confirming delete calls useDeleteContact with the right id", async () => {
     mockDeleteMutateAsync.mockResolvedValue(undefined);
     renderList();
 
@@ -316,25 +267,19 @@ describe("OwnersList — Delete row action", () => {
     await screen.findByRole("alertdialog");
 
     const dialog = screen.getByRole("alertdialog");
-    const confirmButton = within(dialog).getByRole("button", {
-      name: /eliminar/i,
-    });
+    const confirmButton = within(dialog).getByRole("button", { name: /eliminar/i });
     await userEvent.click(confirmButton);
 
-    await waitFor(() => {
-      expect(mockDeleteMutateAsync).toHaveBeenCalledWith("owner-111");
-    });
+    await waitFor(() => expect(mockDeleteMutateAsync).toHaveBeenCalledWith("contact-111"));
   });
 
-  it("cancelling the confirm dialog does NOT call useDeleteOwner", async () => {
+  it("cancelling the confirm dialog does NOT call useDeleteContact", async () => {
     renderList();
     await userEvent.click(screen.getByRole("button", { name: /eliminar/i }));
     await screen.findByRole("alertdialog");
 
     const dialog = screen.getByRole("alertdialog");
-    const cancelButton = within(dialog).getByRole("button", {
-      name: /cancelar/i,
-    });
+    const cancelButton = within(dialog).getByRole("button", { name: /cancelar/i });
     await userEvent.click(cancelButton);
 
     expect(mockDeleteMutateAsync).not.toHaveBeenCalled();

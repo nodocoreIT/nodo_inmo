@@ -1,26 +1,21 @@
 /**
- * TDD — Owner selector inside the property form
+ * TDD — Property form owner select uses useContacts('owner')
  * Tests:
- *   - renders a "Propietario" select populated with owners from useOwners
- *   - includes a "Sin propietario" option (null / empty value)
- *   - selecting an owner and submitting the form passes owner_id in the payload
- *   - leaving "Sin propietario" selected results in owner_id: null in the payload
+ *   - property form renders Propietario select
+ *   - only contacts with role 'owner' appear in the select
+ *   - selecting an owner passes owner_id in the submit payload
+ *   - leaving 'Sin propietario' results in owner_id: null
  */
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// ── Mock supabase ─────────────────────────────────────────────────────────────
 vi.mock("@/shared/lib/supabase", () => ({
   supabase: {
-    schema: vi.fn(() => ({
-      from: vi.fn(() => ({ insert: vi.fn(), select: vi.fn() })),
-    })),
+    schema: vi.fn(() => ({ from: vi.fn(() => ({ insert: vi.fn(), select: vi.fn() })) })),
     auth: {
-      getSession: vi
-        .fn()
-        .mockResolvedValue({ data: { session: null }, error: null }),
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
       onAuthStateChange: vi.fn().mockReturnValue({
         data: { subscription: { unsubscribe: vi.fn(), id: "s1" } },
       }),
@@ -28,7 +23,6 @@ vi.mock("@/shared/lib/supabase", () => ({
   },
 }));
 
-// ── Mock useAuth ──────────────────────────────────────────────────────────────
 vi.mock("@/app/auth/use-auth", () => ({
   useAuth: () => ({
     user: { email: "admin@nodo.com" },
@@ -41,12 +35,9 @@ vi.mock("@/app/auth/use-auth", () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-// ── Mock Radix Select with native <select> ────────────────────────────────────
-// SelectTrigger forwards id + aria-label to the rendered <select> via context,
-// so that label[for] associations work in RTL.
+// Mock Radix Select with native <select>
 vi.mock("@/shared/components/ui/select", () => {
   const React = require("react");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const TriggerCtx = (React.createContext as any)({} as { id?: string; ariaLabel?: string });
 
   const Select = ({
@@ -58,14 +49,9 @@ vi.mock("@/shared/components/ui/select", () => {
     onValueChange?: (v: string) => void;
     value?: string;
   }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [triggerMeta, setTriggerMeta] = (React.useState as any)({} as {
-      id?: string;
-      ariaLabel?: string;
-    });
+    const [triggerMeta, setTriggerMeta] = (React.useState as any)({} as { id?: string; ariaLabel?: string });
     return (
       <TriggerCtx.Provider value={triggerMeta}>
-        {/* clone children to inject setters */}
         {React.Children.map(children, (child: React.ReactNode) =>
           React.isValidElement(child)
             ? React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
@@ -121,23 +107,19 @@ vi.mock("@/shared/components/ui/select", () => {
   };
 
   const SelectValue = (_props: { placeholder?: string }) => null;
-
-  const SelectItem = ({
-    value,
-    children,
-  }: {
-    value: string;
-    children: React.ReactNode;
-  }) => <option value={value}>{children}</option>;
+  const SelectItem = ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <option value={value}>{children}</option>
+  );
 
   return { Select, SelectTrigger, SelectContent, SelectValue, SelectItem };
 });
 
-// ── Mock useOwners ────────────────────────────────────────────────────────────
+// Mock useContacts — only owner-role contacts
 const fixtureOwners = [
   {
     id: "owner-aaa",
     name: "Lucía Martínez",
+    roles: ["owner"],
     dni: null,
     phone: null,
     email: null,
@@ -154,6 +136,7 @@ const fixtureOwners = [
   {
     id: "owner-bbb",
     name: "Marcos Silva",
+    roles: ["owner"],
     dni: null,
     phone: null,
     email: null,
@@ -169,22 +152,15 @@ const fixtureOwners = [
   },
 ];
 
-vi.mock("@/features/owners/hooks/use-owners", () => ({
-  useOwners: () => ({
-    data: fixtureOwners,
-    isLoading: false,
-    isError: false,
-  }),
-  OWNERS_QUERY_KEY: ["nodo_inmo", "contacts"],
+const mockUseContacts = vi.fn();
+vi.mock("@/features/contacts/hooks/use-contacts", () => ({
+  useContacts: (...args: unknown[]) => mockUseContacts(...args),
+  CONTACTS_QUERY_KEY: ["nodo_inmo", "contacts"],
 }));
 
-// ── Mock create property mutation ─────────────────────────────────────────────
 const mockMutateAsync = vi.fn();
 vi.mock("@/features/properties/hooks/use-create-property", () => ({
-  useCreateProperty: () => ({
-    mutateAsync: mockMutateAsync,
-    isPending: false,
-  }),
+  useCreateProperty: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
 }));
 
 import { CreatePropertyDialog } from "@/features/properties/components/create-property-dialog";
@@ -196,61 +172,49 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
-describe("PropertyFormDialog — owner selector", () => {
+describe("PropertyFormDialog — owner select uses useContacts('owner')", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseContacts.mockReturnValue({ data: fixtureOwners, isLoading: false, isError: false });
   });
 
   it("renders a Propietario select", () => {
-    render(
-      <CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />,
-      { wrapper },
-    );
+    render(<CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />, { wrapper });
     expect(screen.getByLabelText(/propietario/i)).toBeInTheDocument();
   });
 
-  it("populates the owner select with owner names from useOwners", () => {
-    render(
-      <CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />,
-      { wrapper },
-    );
+  it("calls useContacts with 'owner' to filter owner contacts", () => {
+    render(<CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />, { wrapper });
+    expect(mockUseContacts).toHaveBeenCalledWith("owner");
+  });
+
+  it("populates the owner select with owner names", () => {
+    render(<CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />, { wrapper });
     expect(screen.getByText("Lucía Martínez")).toBeInTheDocument();
     expect(screen.getByText("Marcos Silva")).toBeInTheDocument();
   });
 
   it("includes a 'Sin propietario' option", () => {
-    render(
-      <CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />,
-      { wrapper },
-    );
+    render(<CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />, { wrapper });
     expect(screen.getByText(/sin propietario/i)).toBeInTheDocument();
   });
 
   it("selecting an owner passes owner_id in the submit payload", async () => {
     mockMutateAsync.mockResolvedValue({ id: "new-prop" });
-    render(
-      <CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />,
-      { wrapper },
-    );
+    render(<CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />, { wrapper });
 
     await userEvent.type(screen.getByLabelText(/dirección/i), "Lavalle 800");
 
-    // Select operation and property_type (required)
     const selects = screen.getAllByRole("combobox");
     const operationSelect = selects.find((s) =>
-      Array.from((s as HTMLSelectElement).options).some(
-        (o) => o.value === "rent",
-      ),
+      Array.from((s as HTMLSelectElement).options).some((o) => o.value === "rent"),
     );
     const typeSelect = selects.find((s) =>
-      Array.from((s as HTMLSelectElement).options).some(
-        (o) => o.value === "apartment",
-      ),
+      Array.from((s as HTMLSelectElement).options).some((o) => o.value === "apartment"),
     );
     await userEvent.selectOptions(operationSelect!, "rent");
     await userEvent.selectOptions(typeSelect!, "apartment");
 
-    // Select owner
     const ownerSelect = screen.getByLabelText(/propietario/i);
     await userEvent.selectOptions(ownerSelect, "owner-aaa");
 
@@ -263,27 +227,19 @@ describe("PropertyFormDialog — owner selector", () => {
 
   it("leaving 'Sin propietario' selected results in owner_id: null", async () => {
     mockMutateAsync.mockResolvedValue({ id: "new-prop" });
-    render(
-      <CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />,
-      { wrapper },
-    );
+    render(<CreatePropertyDialog open onOpenChange={vi.fn()} onSuccess={vi.fn()} />, { wrapper });
 
     await userEvent.type(screen.getByLabelText(/dirección/i), "Tucumán 200");
 
     const selects = screen.getAllByRole("combobox");
     const operationSelect = selects.find((s) =>
-      Array.from((s as HTMLSelectElement).options).some(
-        (o) => o.value === "rent",
-      ),
+      Array.from((s as HTMLSelectElement).options).some((o) => o.value === "rent"),
     );
     const typeSelect = selects.find((s) =>
-      Array.from((s as HTMLSelectElement).options).some(
-        (o) => o.value === "apartment",
-      ),
+      Array.from((s as HTMLSelectElement).options).some((o) => o.value === "apartment"),
     );
     await userEvent.selectOptions(operationSelect!, "sale");
     await userEvent.selectOptions(typeSelect!, "house");
-    // Do NOT change the owner select — leave it at "Sin propietario"
 
     await userEvent.click(screen.getByRole("button", { name: /guardar/i }));
 

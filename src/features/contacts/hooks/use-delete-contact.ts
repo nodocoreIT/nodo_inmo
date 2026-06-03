@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/shared/lib/supabase";
-import { OWNERS_QUERY_KEY } from "./use-owners";
+import { CONTACTS_QUERY_KEY } from "./use-contacts";
 
-export function useDeleteOwner() {
+export function useDeleteContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -16,7 +16,7 @@ export function useDeleteOwner() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: OWNERS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CONTACTS_QUERY_KEY });
     },
   });
 }

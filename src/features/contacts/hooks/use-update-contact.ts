@@ -1,19 +1,19 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/shared/lib/supabase";
 import type { Database } from "@/shared/types/database";
-import { OWNERS_QUERY_KEY } from "./use-owners";
+import { CONTACTS_QUERY_KEY } from "./use-contacts";
 
-type OwnerUpdate = Database["nodo_inmo"]["Tables"]["contacts"]["Update"];
+type ContactUpdate = Database["nodo_inmo"]["Tables"]["contacts"]["Update"];
 
-export type UpdateOwnerInput = Omit<OwnerUpdate, "org_id"> & {
+export type UpdateContactInput = Omit<ContactUpdate, "org_id"> & {
   id: string;
 };
 
-export function useUpdateOwner() {
+export function useUpdateContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...fields }: UpdateOwnerInput) => {
+    mutationFn: async ({ id, ...fields }: UpdateContactInput) => {
       const { data, error } = await supabase
         .schema("nodo_inmo")
         .from("contacts")
@@ -24,7 +24,7 @@ export function useUpdateOwner() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: OWNERS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CONTACTS_QUERY_KEY });
     },
   });
 }
