@@ -43,6 +43,16 @@ const SEARCH_PLACEHOLDERS: Record<string, string> = {
   "/admin/contracts": "Buscar contratos…",
 };
 
+// Header title per route (shown in the top bar, nodo-core style).
+const ROUTE_TITLES: Record<string, string> = {
+  "/admin/properties": "Propiedades",
+  "/admin/owners": "Propietarios",
+  "/admin/tenants": "Inquilinos",
+  "/admin/contracts": "Contratos",
+  "/admin/payments": "Pagos",
+  "/admin/caja": "Caja",
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function initials(value: string): string {
@@ -71,6 +81,7 @@ export function AdminLayout() {
   );
 
   const placeholder = SEARCH_PLACEHOLDERS[pathname];
+  const title = ROUTE_TITLES[pathname] ?? "Gestión";
   const fullName =
     (user?.user_metadata?.full_name as string | undefined) ?? "";
   const email = user?.email ?? "";
@@ -146,8 +157,14 @@ export function AdminLayout() {
 
       {/* ── Main area ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="flex h-16 items-center justify-end border-b border-border bg-card px-6 shadow-sm">
+        {/* Top bar — breadcrumb + section title (left), search (right) */}
+        <header className="flex min-h-16 items-center justify-between gap-4 border-b border-border bg-card px-6 py-3 shadow-sm">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate2">
+              Nodo Inmo · Gestión
+            </p>
+            <h1 className="truncate text-xl font-bold text-navy">{title}</h1>
+          </div>
           {placeholder && <SearchInput placeholder={placeholder} />}
         </header>
 

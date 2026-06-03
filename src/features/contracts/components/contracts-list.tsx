@@ -48,14 +48,8 @@ export function ContractsList() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-navy">Contratos</h2>
-          <p className="mt-1 text-sm text-slate2">
-            Contratos de alquiler de la agencia
-          </p>
-        </div>
+      {/* Action row */}
+      <div className="flex items-center justify-end">
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           Nuevo contrato

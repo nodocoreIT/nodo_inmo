@@ -98,12 +98,6 @@ describe("PropietariosList", () => {
     vi.clearAllMocks();
   });
 
-  it("renders Propietarios heading", () => {
-    mockUseContacts.mockReturnValue({ data: [], isLoading: false, isError: false });
-    render(<PropietariosList />, { wrapper });
-    expect(screen.getByRole("heading", { name: /propietarios/i })).toBeInTheDocument();
-  });
-
   it("renders 'Nuevo propietario' button", () => {
     mockUseContacts.mockReturnValue({ data: [], isLoading: false, isError: false });
     render(<PropietariosList />, { wrapper });

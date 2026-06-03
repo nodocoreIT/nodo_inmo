@@ -99,12 +99,6 @@ describe("InquilinosList", () => {
     vi.clearAllMocks();
   });
 
-  it("renders Inquilinos heading", () => {
-    mockUseContacts.mockReturnValue({ data: [], isLoading: false, isError: false });
-    render(<InquilinosList />, { wrapper });
-    expect(screen.getByRole("heading", { name: /inquilinos/i })).toBeInTheDocument();
-  });
-
   it("renders 'Nuevo inquilino' button", () => {
     mockUseContacts.mockReturnValue({ data: [], isLoading: false, isError: false });
     render(<InquilinosList />, { wrapper });
