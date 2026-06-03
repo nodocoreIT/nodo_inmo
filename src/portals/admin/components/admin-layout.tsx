@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Building2,
   Users,
@@ -6,9 +7,13 @@ import {
   CreditCard,
   Wallet,
   LogOut,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { BrandMark } from "@/shared/components/brand-mark";
+import { SearchInput } from "@/shared/components/search-input";
+import { ProfileDialog } from "@/features/profile/components/profile-dialog";
+import { useSearchStore } from "@/shared/search/use-search-store";
 import { useAuth } from "@/app/auth/use-auth";
 import { cn } from "@/shared/lib/utils";
 
@@ -30,14 +35,46 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin/caja", label: "Caja", icon: Wallet, adminOnly: true },
 ];
 
+// Top-bar search placeholder per searchable route.
+const SEARCH_PLACEHOLDERS: Record<string, string> = {
+  "/admin/properties": "Buscar propiedades…",
+  "/admin/owners": "Buscar propietarios…",
+  "/admin/tenants": "Buscar inquilinos…",
+  "/admin/contracts": "Buscar contratos…",
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function initials(value: string): string {
+  const base = value.trim();
+  if (!base) return "?";
+  const parts = base.split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return base.slice(0, 2).toUpperCase();
+}
+
 // ── Layout ────────────────────────────────────────────────────────────────────
 
 export function AdminLayout() {
   const { user, role, signOut } = useAuth();
+  const { pathname } = useLocation();
+  const resetSearch = useSearchStore((s) => s.reset);
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  // Clear the search query when switching areas so they don't inherit it.
+  useEffect(() => {
+    resetSearch();
+  }, [pathname, resetSearch]);
 
   const visibleNav = NAV_ITEMS.filter(
     (item) => !item.adminOnly || role === "admin",
   );
+
+  const placeholder = SEARCH_PLACEHOLDERS[pathname];
+  const fullName =
+    (user?.user_metadata?.full_name as string | undefined) ?? "";
+  const email = user?.email ?? "";
+  const displayName = fullName || email;
 
   return (
     <div className="flex min-h-screen bg-paper">
@@ -49,7 +86,10 @@ export function AdminLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-4" aria-label="Navegación principal">
+        <nav
+          className="flex flex-1 flex-col gap-1 px-3 py-4"
+          aria-label="Navegación principal"
+        >
           {visibleNav.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
@@ -68,25 +108,47 @@ export function AdminLayout() {
             </NavLink>
           ))}
         </nav>
+
+        {/* User block pinned to the bottom */}
+        <div className="border-t border-navy-700 p-3">
+          <div className="flex items-center gap-3 px-1 py-1">
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
+              {initials(displayName)}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-white">
+                {displayName}
+              </p>
+              {fullName && (
+                <p className="truncate text-xs text-slate2-300">{email}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              aria-label="Editar perfil"
+              onClick={() => setProfileOpen(true)}
+              className="flex-shrink-0 rounded-md p-1.5 text-slate2-300 transition-colors hover:bg-navy-700 hover:text-white"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => signOut()}
+            className="mt-2 w-full justify-center gap-2 border-navy-700 bg-transparent text-slate2-300 hover:bg-navy-700 hover:text-white"
+          >
+            <LogOut className="h-4 w-4" />
+            Cerrar sesión
+          </Button>
+        </div>
       </aside>
 
       {/* ── Main area ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6 shadow-sm">
-          <div />
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-slate2">{user?.email}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => signOut()}
-              className="gap-2 text-slate2 hover:text-foreground"
-            >
-              <LogOut className="h-4 w-4" />
-              Cerrar sesión
-            </Button>
-          </div>
+        <header className="flex h-16 items-center justify-end border-b border-border bg-card px-6 shadow-sm">
+          {placeholder && <SearchInput placeholder={placeholder} />}
         </header>
 
         {/* Content area */}
@@ -94,6 +156,14 @@ export function AdminLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Profile editor */}
+      <ProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        currentName={fullName}
+        email={email}
+      />
     </div>
   );
 }

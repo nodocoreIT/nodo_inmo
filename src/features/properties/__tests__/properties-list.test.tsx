@@ -45,6 +45,7 @@ vi.mock("@/features/properties/hooks/use-properties", () => ({
 }));
 
 import { PropertiesList } from "@/features/properties/components/properties-list";
+import { useSearchStore } from "@/shared/search/use-search-store";
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({
@@ -56,6 +57,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe("PropertiesList", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useSearchStore.setState({ query: "" });
   });
 
   it("shows loading state", () => {
@@ -174,6 +176,33 @@ describe("PropertiesList", () => {
     expect(screen.getByText("Callao 500")).toBeInTheDocument();
     expect(screen.getByText("Local")).toBeInTheDocument();
     expect(screen.getByText("Alquilada")).toBeInTheDocument();
+  });
+
+  it("filters rows by the global search query", () => {
+    mockUseProperties.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      error: null,
+      data: [
+        {
+          id: "p-1", address: "Av. Corrientes 1234", property_type: "house",
+          operation: "sale", status: "available", sale_price: 80000, currency: "USD",
+          rooms: 3, org_id: "org-1", created_at: "", updated_at: "", description: null,
+          inventory_description: null, main_photo: null, owner_id: null, total_sqm: null,
+        },
+        {
+          id: "p-2", address: "Callao 500", property_type: "commercial",
+          operation: "rent", status: "rented", sale_price: null, currency: "ARS",
+          rooms: null, org_id: "org-1", created_at: "", updated_at: "", description: null,
+          inventory_description: null, main_photo: null, owner_id: null, total_sqm: null,
+        },
+      ],
+    });
+    useSearchStore.setState({ query: "callao" });
+    render(<PropertiesList />, { wrapper });
+
+    expect(screen.queryByText("Av. Corrientes 1234")).not.toBeInTheDocument();
+    expect(screen.getByText("Callao 500")).toBeInTheDocument();
   });
 
   it("shows error state", () => {

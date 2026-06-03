@@ -20,6 +20,11 @@ vi.mock("@/app/auth/use-auth", () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+// Isolate the layout test from the profile dialog (it imports supabase).
+vi.mock("@/features/profile/components/profile-dialog", () => ({
+  ProfileDialog: () => null,
+}));
+
 import { AdminLayout } from "@/portals/admin/components/admin-layout";
 
 function renderLayout(role: "admin" | "agent" = "admin") {

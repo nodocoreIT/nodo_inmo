@@ -26,6 +26,8 @@ import {
   AlertDialogTrigger,
 } from "@/shared/components/ui/alert-dialog";
 import { ContactFormDialog } from "./contact-form-dialog";
+import { useSearchStore } from "@/shared/search/use-search-store";
+import { matchesQuery } from "@/shared/search/matches-query";
 import type { ContactRow, ContactRole } from "@/features/contacts/hooks/use-contacts";
 import { useCreateContact } from "@/features/contacts/hooks/use-create-contact";
 import { useUpdateContact } from "@/features/contacts/hooks/use-update-contact";
@@ -77,6 +79,12 @@ export function ContactsListTable({
   const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
 
+  const query = useSearchStore((s) => s.query);
+  const filtered = (data ?? []).filter((c) =>
+    matchesQuery([c.name, c.dni, c.phone, c.email], query),
+  );
+  const noResults = !!data && data.length > 0 && filtered.length === 0;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
@@ -123,8 +131,17 @@ export function ContactsListTable({
         </div>
       )}
 
+      {/* No search results */}
+      {!isLoading && !isError && noResults && (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-mist py-12 text-center">
+          <p className="text-sm font-medium text-slate2">
+            Sin resultados para "{query}"
+          </p>
+        </div>
+      )}
+
       {/* Table */}
-      {!isLoading && !isError && data && data.length > 0 && (
+      {!isLoading && !isError && filtered.length > 0 && (
         <div className="rounded-md border border-border bg-card shadow-sm">
           <Table>
             <TableHeader>
@@ -140,7 +157,7 @@ export function ContactsListTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((contact) => (
+              {filtered.map((contact) => (
                 <TableRow key={contact.id}>
                   <TableCell className="font-medium">{contact.name}</TableCell>
                   <TableCell>{contact.dni ?? "—"}</TableCell>

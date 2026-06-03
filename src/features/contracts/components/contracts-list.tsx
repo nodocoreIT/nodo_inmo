@@ -3,6 +3,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useContracts } from "@/features/contracts/hooks/use-contracts";
 import { useDeleteContract } from "@/features/contracts/hooks/use-delete-contract";
+import { useSearchStore } from "@/shared/search/use-search-store";
+import { matchesQuery } from "@/shared/search/matches-query";
 import { CreateContractDialog } from "./create-contract-dialog";
 import {
   AlertDialog,
@@ -32,8 +34,17 @@ import {
 
 export function ContractsList() {
   const { data, isLoading, isError } = useContracts();
+  const query = useSearchStore((s) => s.query);
   const [createOpen, setCreateOpen] = useState(false);
   const deleteContract = useDeleteContract();
+
+  const filtered = (data ?? []).filter((c) =>
+    matchesQuery(
+      [c.property?.address, c.tenant?.name, c.status, c.adjustment_index],
+      query,
+    ),
+  );
+  const noResults = !!data && data.length > 0 && filtered.length === 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -82,7 +93,15 @@ export function ContractsList() {
         </div>
       )}
 
-      {!isLoading && !isError && data && data.length > 0 && (
+      {!isLoading && !isError && noResults && (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-mist py-12 text-center">
+          <p className="text-sm font-medium text-slate2">
+            Sin resultados para "{query}"
+          </p>
+        </div>
+      )}
+
+      {!isLoading && !isError && filtered.length > 0 && (
         <div className="rounded-md border border-border bg-card shadow-sm">
           <Table>
             <TableHeader>
@@ -98,7 +117,7 @@ export function ContractsList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((contract) => (
+              {filtered.map((contract) => (
                 <TableRow key={contract.id}>
                   <TableCell className="font-medium">
                     {contract.property?.address ?? "—"}
