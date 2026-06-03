@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import type { PropertyRow } from "@/features/properties/hooks/use-properties";
+import { useOwners } from "@/features/owners/hooks/use-owners";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,8 @@ const schema = z.object({
   rooms: z.string().optional(),
   description: z.string().optional(),
   inventory_description: z.string().optional(),
+  // Owner FK — empty string means "no owner" (null)
+  owner_id: z.string().optional(),
 });
 
 export type PropertyFormValues = z.infer<typeof schema>;
@@ -95,6 +98,7 @@ function buildPayload(values: PropertyFormValues) {
     rooms: toNumberOrNull(values.rooms),
     description: values.description || null,
     inventory_description: values.inventory_description || null,
+    owner_id: values.owner_id || null,
   };
 }
 
@@ -109,6 +113,7 @@ export function PropertyFormDialog({
   isPending = false,
 }: PropertyFormDialogProps) {
   const isEdit = !!property;
+  const { data: owners = [] } = useOwners();
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(schema) as any,
@@ -123,6 +128,7 @@ export function PropertyFormDialog({
       rooms: toStringOrEmpty(property?.rooms),
       description: property?.description ?? "",
       inventory_description: property?.inventory_description ?? "",
+      owner_id: property?.owner_id ?? "",
     },
   });
 
@@ -367,6 +373,36 @@ export function PropertyFormDialog({
                       {...field}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Owner selector */}
+            <FormField
+              control={form.control as any}
+              name="owner_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="owner-select">Propietario</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger
+                        id="owner-select"
+                        aria-label="Propietario"
+                      >
+                        <SelectValue placeholder="Sin propietario" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">Sin propietario</SelectItem>
+                      {owners.map((owner) => (
+                        <SelectItem key={owner.id} value={owner.id}>
+                          {owner.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AdminLayout } from "./components/admin-layout";
 import { PropertiesList } from "@/features/properties/components/properties-list";
+import { OwnersList } from "@/features/owners/components/owners-list";
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -18,7 +19,7 @@ export function AdminPortalPage() {
         {/* Default → properties */}
         <Route index element={<Navigate to="properties" replace />} />
         <Route path="properties" element={<PropertiesList />} />
-        <Route path="owners" element={<PlaceholderPage title="Propietarios" />} />
+        <Route path="owners" element={<OwnersList />} />
         <Route path="contracts" element={<PlaceholderPage title="Contratos" />} />
         <Route path="payments" element={<PlaceholderPage title="Pagos" />} />
         <Route path="caja" element={<PlaceholderPage title="Caja" />} />
