@@ -5,15 +5,7 @@ import { PropietariosList } from "@/features/contacts/components/propietarios-li
 import { InquilinosList } from "@/features/contacts/components/inquilinos-list";
 import { ContractsList } from "@/features/contracts/components/contracts-list";
 import { PaymentsList } from "@/features/payments/components/payments-list";
-
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <h2 className="text-2xl font-bold text-navy">{title}</h2>
-      <p className="text-sm text-slate2">Próximamente disponible.</p>
-    </div>
-  );
-}
+import { CajaPage } from "@/features/caja/components/caja-page";
 
 export function AdminPortalPage() {
   return (
@@ -26,7 +18,7 @@ export function AdminPortalPage() {
         <Route path="tenants" element={<InquilinosList />} />
         <Route path="contracts" element={<ContractsList />} />
         <Route path="payments" element={<PaymentsList />} />
-        <Route path="caja" element={<PlaceholderPage title="Caja" />} />
+        <Route path="caja" element={<CajaPage />} />
       </Route>
     </Routes>
   );
