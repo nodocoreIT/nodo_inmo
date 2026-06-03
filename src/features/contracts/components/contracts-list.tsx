@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useContracts } from "@/features/contracts/hooks/use-contracts";
+import type { ContractWithRelations } from "@/features/contracts/hooks/use-contracts";
 import { useDeleteContract } from "@/features/contracts/hooks/use-delete-contract";
+import { useUpdateContract } from "@/features/contracts/hooks/use-update-contract";
+import { ContractFormDialog } from "./contract-form-dialog";
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
 import { CreateContractDialog } from "./create-contract-dialog";
@@ -36,7 +39,11 @@ export function ContractsList() {
   const { data, isLoading, isError } = useContracts();
   const query = useSearchStore((s) => s.query);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editContract, setEditContract] = useState<ContractWithRelations | null>(
+    null,
+  );
   const deleteContract = useDeleteContract();
+  const updateContract = useUpdateContract();
 
   const filtered = (data ?? []).filter((c) =>
     matchesQuery(
@@ -107,7 +114,7 @@ export function ContractsList() {
                 <TableHead>Alquiler</TableHead>
                 <TableHead>Ajuste</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead className="w-16 text-right">Acciones</TableHead>
+                <TableHead className="w-24 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -131,9 +138,20 @@ export function ContractsList() {
                     <StatusBadge status={contract.status} />
                   </TableCell>
                   <TableCell className="text-right">
-                    <DeleteAction
-                      onConfirm={() => deleteContract.mutateAsync(contract.id)}
-                    />
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Editar"
+                        onClick={() => setEditContract(contract)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">Editar</span>
+                      </Button>
+                      <DeleteAction
+                        onConfirm={() => deleteContract.mutateAsync(contract.id)}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -147,6 +165,23 @@ export function ContractsList() {
         onOpenChange={setCreateOpen}
         onSuccess={() => setCreateOpen(false)}
       />
+
+      {editContract && (
+        <ContractFormDialog
+          open={!!editContract}
+          onOpenChange={(open) => {
+            if (!open) setEditContract(null);
+          }}
+          contract={editContract}
+          onSuccess={() => setEditContract(null)}
+          onSubmit={(payload) =>
+            updateContract
+              .mutateAsync({ id: editContract.id, ...payload })
+              .then(() => undefined)
+          }
+          isPending={updateContract.isPending}
+        />
+      )}
     </div>
   );
 }

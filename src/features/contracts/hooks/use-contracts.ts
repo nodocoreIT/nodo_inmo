@@ -4,10 +4,11 @@ import type { Database } from "@/shared/types/database";
 
 export type ContractRow = Database["nodo_inmo"]["Tables"]["contracts"]["Row"];
 
-/** Contract row enriched with the related property address and tenant name. */
+/** Contract row enriched with the related property address, tenant name and guarantor links. */
 export type ContractWithRelations = ContractRow & {
   property: { address: string } | null;
   tenant: { name: string } | null;
+  guarantors: { guarantor_id: string }[];
 };
 
 export const CONTRACTS_QUERY_KEY = ["nodo_inmo", "contracts"] as const;
@@ -24,7 +25,7 @@ export function useContracts() {
         .schema("nodo_inmo")
         .from("contracts")
         .select(
-          "*, property:properties!contracts_property_id_fkey(address), tenant:contacts!contracts_tenant_id_fkey(name)",
+          "*, property:properties!contracts_property_id_fkey(address), tenant:contacts!contracts_tenant_id_fkey(name), guarantors:contract_guarantors(guarantor_id)",
         )
         .order("created_at", { ascending: false });
 

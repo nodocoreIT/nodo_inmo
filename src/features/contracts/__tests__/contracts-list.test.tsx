@@ -18,6 +18,15 @@ vi.mock("@/features/contracts/hooks/use-delete-contract", () => ({
   useDeleteContract: () => ({ mutateAsync: mockDeleteMutateAsync, isPending: false }),
 }));
 
+vi.mock("@/features/contracts/hooks/use-update-contract", () => ({
+  useUpdateContract: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+// Edit dialog imports supabase-backed hooks; stub it for the list test.
+vi.mock("@/features/contracts/components/contract-form-dialog", () => ({
+  ContractFormDialog: () => null,
+}));
+
 // CreateContractDialog pulls in auth/supabase; stub it out for the list test.
 vi.mock("@/features/contracts/components/create-contract-dialog", () => ({
   CreateContractDialog: () => null,

@@ -33,6 +33,7 @@ import {
 } from "@/shared/components/ui/select";
 import { useProperties } from "@/features/properties/hooks/use-properties";
 import { useContacts } from "@/features/contacts/hooks/use-contacts";
+import type { ContractWithRelations } from "@/features/contracts/hooks/use-contracts";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,11 @@ function toNumberOrNull(v: string | undefined | null): number | null {
   return isNaN(n) ? null : n;
 }
 
+function toStr(v: number | string | null | undefined): string {
+  if (v === null || v === undefined) return "";
+  return String(v);
+}
+
 function buildPayload(values: ContractFormValues, guarantorIds: string[]) {
   return {
     property_id: values.property_id,
@@ -86,6 +92,8 @@ function buildPayload(values: ContractFormValues, guarantorIds: string[]) {
 interface ContractFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When provided the dialog is in edit mode and prefills from this contract. */
+  contract?: ContractWithRelations;
   onSuccess?: () => void;
   onSubmit: (values: ReturnType<typeof buildPayload>) => Promise<void>;
   isPending?: boolean;
@@ -96,32 +104,36 @@ interface ContractFormDialogProps {
 export function ContractFormDialog({
   open,
   onOpenChange,
+  contract,
   onSuccess,
   onSubmit,
   isPending = false,
 }: ContractFormDialogProps) {
+  const isEdit = !!contract;
   const { data: properties = [] } = useProperties();
   const { data: tenants = [] } = useContacts("tenant");
   const { data: guarantors = [] } = useContacts("guarantor");
 
-  const [guarantorIds, setGuarantorIds] = useState<string[]>([]);
+  const [guarantorIds, setGuarantorIds] = useState<string[]>(
+    contract?.guarantors?.map((g) => g.guarantor_id) ?? [],
+  );
 
   const form = useForm<ContractFormValues>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
-      property_id: "",
-      tenant_id: "",
-      start_date: "",
-      end_date: "",
-      rent_amount: "",
-      currency: "ARS",
-      deposit_amount: "",
-      commission_amount: "",
-      expenses_paid_by: "tenant",
-      adjustment_index: "IPC",
-      adjustment_period_months: "12",
-      status: "draft",
-      notes: "",
+      property_id: contract?.property_id ?? "",
+      tenant_id: contract?.tenant_id ?? "",
+      start_date: contract?.start_date ?? "",
+      end_date: contract?.end_date ?? "",
+      rent_amount: toStr(contract?.rent_amount),
+      currency: (contract?.currency as any) ?? "ARS",
+      deposit_amount: toStr(contract?.deposit_amount),
+      commission_amount: toStr(contract?.commission_amount),
+      expenses_paid_by: (contract?.expenses_paid_by as any) ?? "tenant",
+      adjustment_index: (contract?.adjustment_index as any) ?? "IPC",
+      adjustment_period_months: toStr(contract?.adjustment_period_months) || "12",
+      status: (contract?.status as any) ?? "draft",
+      notes: contract?.notes ?? "",
     },
   });
 
@@ -133,8 +145,10 @@ export function ContractFormDialog({
 
   async function handleSubmit(values: ContractFormValues) {
     await onSubmit(buildPayload(values, guarantorIds));
-    form.reset();
-    setGuarantorIds([]);
+    if (!isEdit) {
+      form.reset();
+      setGuarantorIds([]);
+    }
     onSuccess?.();
   }
 
@@ -142,9 +156,11 @@ export function ContractFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nuevo contrato</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar contrato" : "Nuevo contrato"}</DialogTitle>
           <DialogDescription>
-            Completá los datos del contrato de alquiler.
+            {isEdit
+              ? "Modificá los datos del contrato y guardá los cambios."
+              : "Completá los datos del contrato de alquiler."}
           </DialogDescription>
         </DialogHeader>
 
