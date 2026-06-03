@@ -9,6 +9,69 @@ export type Json =
 export type Database = {
   nodo_inmo: {
     Tables: {
+      cash_movements: {
+        Row: {
+          amount: number
+          category: string | null
+          concept: string
+          created_at: string
+          currency: string
+          date: string
+          id: string
+          org_id: string
+          owner_id: string | null
+          payment_id: string | null
+          source: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          concept: string
+          created_at?: string
+          currency?: string
+          date?: string
+          id?: string
+          org_id: string
+          owner_id?: string | null
+          payment_id?: string | null
+          source?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          concept?: string
+          created_at?: string
+          currency?: string
+          date?: string
+          id?: string
+          org_id?: string
+          owner_id?: string | null
+          payment_id?: string | null
+          source?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           address: string | null
@@ -176,6 +239,60 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_settlements: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          org_id: string
+          owner_id: string
+          payment_id: string
+          settled_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          org_id: string
+          owner_id: string
+          payment_id: string
+          settled_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          org_id?: string
+          owner_id?: string
+          payment_id?: string
+          settled_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_settlements_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_settlements_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "payments"
             referencedColumns: ["id"]
           },
         ]
