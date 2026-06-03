@@ -82,13 +82,12 @@ export function AdminLayout() {
 
   const placeholder = SEARCH_PLACEHOLDERS[pathname];
   const title = ROUTE_TITLES[pathname] ?? "Gestión";
-  const fullName =
-    (user?.user_metadata?.full_name as string | undefined) ?? "";
+  const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "";
   const email = user?.email ?? "";
   const displayName = fullName || email;
 
   return (
-    <div className="flex min-h-screen bg-paper">
+    <div className="flex min-h-screen bg-paper]">
       {/* ── Sidebar ── */}
       <aside className="flex w-60 flex-shrink-0 flex-col border-r border-border bg-navy">
         {/* Brand mark */}
@@ -158,7 +157,7 @@ export function AdminLayout() {
       {/* ── Main area ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar — breadcrumb + section title (left), search (right) */}
-        <header className="flex min-h-16 items-center justify-between gap-4 border-b border-border bg-card px-6 py-3 shadow-sm">
+        <header className="flex min-h-26 items-center justify-between gap-4 border-b border-border bg-[#EEF3F8] px-6 py-3 shadow-sm">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate2">
               Nodo Inmo · Gestión

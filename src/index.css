@@ -2,19 +2,19 @@
 
 @theme {
   /* ─── Nodo Brand Colors ─────────────────────────────────── */
-  --color-navy: #1B2A41;
+  --color-navy: #121e2f;
   --color-navy-700: #233650;
-  --color-navy-900: #121E2F;
-  --color-brand: #DA5A0E;
-  --color-brand-600: #C04E0B;
-  --color-brand-300: #F0A877;
-  --color-paper: #F5F8FC;
+  --color-navy-900: #121e2f;
+  --color-brand: #da5a0e;
+  --color-brand-600: #c04e0b;
+  --color-brand-300: #f0a877;
+  --color-paper: #f5f8fc;
   --color-slate2: #647890;
-  --color-slate2-300: #9DACBE;
-  --color-mist: #DEE7F1;
-  --color-mist-200: #EBF1F7;
-  --color-ink: #16202E;
-  --color-footer: #0D1722;
+  --color-slate2-300: #9dacbe;
+  --color-mist: #dee7f1;
+  --color-mist-200: #ebf1f7;
+  --color-ink: #16202e;
+  --color-footer: #0d1722;
 
   /* ─── shadcn/ui semantic tokens — wired to Nodo palette ─── */
   --color-background: var(--color-paper);
@@ -52,9 +52,12 @@
   --radius: 8px;
 
   /* ─── Shadows ─────────────────────────────────────────────── */
-  --shadow-sm: 0 1px 2px rgba(18, 30, 47, 0.06), 0 2px 6px rgba(18, 30, 47, 0.05);
-  --shadow-md: 0 8px 24px rgba(18, 30, 47, 0.08), 0 2px 6px rgba(18, 30, 47, 0.04);
-  --shadow-lg: 0 24px 60px rgba(18, 30, 47, 0.16), 0 8px 20px rgba(18, 30, 47, 0.08);
+  --shadow-sm:
+    0 1px 2px rgba(18, 30, 47, 0.06), 0 2px 6px rgba(18, 30, 47, 0.05);
+  --shadow-md:
+    0 8px 24px rgba(18, 30, 47, 0.08), 0 2px 6px rgba(18, 30, 47, 0.04);
+  --shadow-lg:
+    0 24px 60px rgba(18, 30, 47, 0.16), 0 8px 20px rgba(18, 30, 47, 0.08);
 }
 
 /* ─── Base styles ──────────────────────────────────────────── */

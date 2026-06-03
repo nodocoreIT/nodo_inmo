@@ -180,6 +180,65 @@ export type Database = {
           },
         ]
       }
+      payments: {
+        Row: {
+          amount: number
+          contract_id: string
+          created_at: string
+          currency: string
+          due_date: string
+          id: string
+          notes: string | null
+          org_id: string
+          paid_amount: number | null
+          paid_date: string | null
+          payment_method: string | null
+          period: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          contract_id: string
+          created_at?: string
+          currency?: string
+          due_date: string
+          id?: string
+          notes?: string | null
+          org_id: string
+          paid_amount?: number | null
+          paid_date?: string | null
+          payment_method?: string | null
+          period: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string
+          created_at?: string
+          currency?: string
+          due_date?: string
+          id?: string
+          notes?: string | null
+          org_id?: string
+          paid_amount?: number | null
+          paid_date?: string | null
+          payment_method?: string | null
+          period?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       properties: {
         Row: {
           address: string
