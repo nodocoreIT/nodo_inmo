@@ -1,3 +1,4 @@
+Connecting to db 5432
 export type Json =
   | string
   | number
@@ -7,6 +8,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   nodo_inmo: {
     Tables: {
       cash_movements: {
@@ -421,9 +447,90 @@ export type Database = {
           },
         ]
       }
+      property_expenses: {
+        Row: {
+          amount: number
+          charged_to_owner: boolean
+          created_at: string
+          currency: string
+          description: string
+          expense_date: string
+          id: string
+          org_id: string
+          property_id: string
+          receipt_path: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          charged_to_owner: boolean
+          created_at?: string
+          currency?: string
+          description: string
+          expense_date?: string
+          id?: string
+          org_id: string
+          property_id: string
+          receipt_path?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          charged_to_owner?: boolean
+          created_at?: string
+          currency?: string
+          description?: string
+          expense_date?: string
+          id?: string
+          org_id?: string
+          property_id?: string
+          receipt_path?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_expenses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      owner_chargeable_expenses: {
+        Row: {
+          amount: number | null
+          currency: string | null
+          description: string | null
+          expense_date: string | null
+          expense_id: string | null
+          org_id: string | null
+          owner_id: string | null
+          property_id: string | null
+          type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_owner_contact_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_expenses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
@@ -718,6 +825,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   nodo_inmo: {
     Enums: {},
   },
@@ -729,3 +839,6 @@ export const Constants = {
   },
 } as const
 
+<claude-code-hint v="1" type="plugin" value="supabase@claude-plugins-official" />
+A new version of Supabase CLI is available: v2.104.0 (currently installed v2.98.2)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
