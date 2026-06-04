@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { computeBalance, groupPendingByOwner } from "@/features/caja/lib/caja-math";
+import {
+  computeBalance,
+  computeTotals,
+  groupPendingByOwner,
+} from "@/features/caja/lib/caja-math";
 
 describe("computeBalance", () => {
   it("adds income and subtracts expense", () => {
@@ -14,6 +18,22 @@ describe("computeBalance", () => {
 
   it("is 0 for no movements", () => {
     expect(computeBalance([])).toBe(0);
+  });
+});
+
+describe("computeTotals", () => {
+  it("splits income and expense and computes the balance", () => {
+    expect(
+      computeTotals([
+        { type: "income", amount: 25000 },
+        { type: "income", amount: 50000 },
+        { type: "expense", amount: 20000 },
+      ]),
+    ).toEqual({ income: 75000, expense: 20000, balance: 55000 });
+  });
+
+  it("returns zeros for no movements", () => {
+    expect(computeTotals([])).toEqual({ income: 0, expense: 0, balance: 0 });
   });
 });
 

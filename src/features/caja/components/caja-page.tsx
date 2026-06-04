@@ -13,7 +13,7 @@ import { useCashMovements } from "@/features/caja/hooks/use-cash-movements";
 import { useOwnerSettlements } from "@/features/caja/hooks/use-owner-settlements";
 import { useSettleOwner } from "@/features/caja/hooks/use-settle-owner";
 import { MovementFormDialog } from "./movement-form-dialog";
-import { computeBalance, groupPendingByOwner } from "@/features/caja/lib/caja-math";
+import { computeTotals, groupPendingByOwner } from "@/features/caja/lib/caja-math";
 import { formatMoney, formatDate } from "@/features/contracts/lib/contract-labels";
 import { cn } from "@/shared/lib/utils";
 
@@ -67,6 +67,25 @@ function TabButton({
   );
 }
 
+function StatCard({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  valueClass: string;
+}) {
+  return (
+    <div className="rounded-md border border-border bg-card px-5 py-4 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate2">
+        {label}
+      </p>
+      <p className={cn("mt-1 text-2xl font-bold", valueClass)}>{value}</p>
+    </div>
+  );
+}
+
 // ── Movimientos ───────────────────────────────────────────────────────────────
 
 function MovementsTab() {
@@ -74,28 +93,25 @@ function MovementsTab() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const movements = data ?? [];
-  const balance = computeBalance(movements);
+  const { income, expense, balance } = computeTotals(movements);
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="rounded-md border border-border bg-card px-5 py-4 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate2">
-            Saldo de caja
-          </p>
-          <p
-            className={cn(
-              "mt-1 text-2xl font-bold",
-              balance >= 0 ? "text-navy" : "text-destructive",
-            )}
-          >
-            {formatMoney(balance, "ARS")}
-          </p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           Nuevo movimiento
         </Button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Ingresos" value={formatMoney(income, "ARS")} valueClass="text-green-700" />
+        <StatCard label="Egresos" value={formatMoney(expense, "ARS")} valueClass="text-destructive" />
+        <StatCard
+          label="Saldo de caja"
+          value={formatMoney(balance, "ARS")}
+          valueClass={balance >= 0 ? "text-navy" : "text-destructive"}
+        />
       </div>
 
       {isLoading && (

@@ -15,6 +15,21 @@ export function computeBalance(movements: MovementLike[]): number {
   );
 }
 
+/** Totals split by type plus the resulting balance. */
+export function computeTotals(movements: MovementLike[]): {
+  income: number;
+  expense: number;
+  balance: number;
+} {
+  let income = 0;
+  let expense = 0;
+  for (const m of movements) {
+    if (m.type === "income") income += m.amount;
+    else expense += m.amount;
+  }
+  return { income, expense, balance: income - expense };
+}
+
 export interface SettlementLike {
   id: string;
   owner_id: string;
