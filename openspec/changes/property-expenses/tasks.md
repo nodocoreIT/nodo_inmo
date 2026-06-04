@@ -260,21 +260,28 @@ Depends on: nothing except WU1 being planned.
 
 ---
 
-## Work Unit 7 — Manual verification (storage cross-tenant)
+## Work Unit 7 — Storage cross-tenant integration test (R18 / R19)
 
 Depends on: WU2 committed + local Supabase running. Runs after WU2e.
-Cannot be automated via pgTAP (requires Storage HTTP API — design §8 manual verification).
+**Automated** via integration test (not manual anymore — see FIX 5 from test-hardening pass).
 
-- [ ] 👤 `supabase start` (if not already running).
-- [ ] 👤 As admin of org A: register an expense with a photo via the UI or direct API
-      call. Confirm the object lands at `{orgA}/{propertyId}/{uuid}-{filename}` in the
-      `property-expense-receipts` bucket.
-- [ ] 👤 As admin of org B: attempt `createSignedUrl` on the org A object key → confirm
-      the request is denied (RLS policy blocks cross-org read — spec R18).
-- [ ] 👤 Confirm bucket is private: request the public URL pattern
-      `/storage/v1/object/public/property-expense-receipts/...` without auth → 400 or
-      404 (spec R19).
-- [ ] Document the manual check outcome as a comment or note in the PR description.
+File: `supabase/tests/integration/storage-cross-tenant.integration.test.ts`
+
+Run command (Node 22 required):
+```bash
+~/.nvm/versions/node/v22.22.0/bin/node \
+  node_modules/.bin/tsx \
+  supabase/tests/integration/storage-cross-tenant.integration.test.ts
+```
+
+- [x] 👤 Integration test implemented and executed against the live local stack.
+- [x] R16: Admin A can upload a receipt to their org path → PASS
+- [x] R16: Admin A can create a signed URL for their own receipt → PASS
+- [x] R18: Admin B CANNOT create a signed URL for org A receipt → PASS (cross-tenant denied)
+- [x] R19: Public URL returns 400 (bucket is private) → PASS
+- [x] Teardown: test cleans up all created users, orgs, and storage objects.
+- [x] Guard: test exits 0 with SKIP message if local stack is not running.
+- [x] Result: 7/7 PASS on local stack (2026-06-04)
 
 ---
 

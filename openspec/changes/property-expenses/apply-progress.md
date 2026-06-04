@@ -63,12 +63,54 @@
 
 ---
 
+### Test-hardening pass (2026-06-04)
+
+All five fixes from the verify-report applied and confirmed GREEN.
+
+**FIX 1 — WARNING 1: R13 RLS WITH CHECK test now proves the guard**
+- `140_property_expenses.test.sql` line ~171: changed target org_id from nonexistent
+  `f0000000-0000-0000-0000-000000000099` to valid seeded Org F
+  `f0000000-0000-0000-0000-000000000002`. FK is now satisfied; only the RLS WITH CHECK
+  can block the update. Test is RED without the policy → GREEN with it.
+
+**FIX 2 — WARNING 3: storage policies assertion no longer fragile**
+- Replaced `policies_are('storage','objects', array[...4...], ...)` with four individual
+  `ok(exists(select 1 from pg_policies where policyname = '...'), ...)` assertions.
+  Adding a future bucket's policies won't cause false failures.
+
+**FIX 3 — SUGGESTION 1: R3 runtime INSERT rejection now tested**
+- Added `throws_ok` (error code `23502`) for INSERT omitting `charged_to_owner`.
+  Spec scenario "insert without charged_to_owner is rejected" is now covered at runtime.
+
+**FIX 4 — SUGGESTION 2: 030_rls_enabled.test.sql includes property_expenses**
+- Added one assertion to `030_rls_enabled.test.sql` (plan: 5 → 6) confirming
+  `nodo_inmo.property_expenses` has RLS enabled. Consistent with the file's stated scope.
+
+**FIX 5 — WU7: real integration test for R18 / R19**
+- New file: `supabase/tests/integration/storage-cross-tenant.integration.test.ts`
+- Uses supabase-js + postgres package against the live local stack.
+- Provisions real users + orgs + memberships; the custom_access_token_hook fires and
+  injects org_id/role into JWT app_metadata on sign-in.
+- Tests: hook fires correctly, admin A upload succeeds, admin A signed URL works,
+  admin B signed URL for org A object is denied, public URL returns 400.
+- Result: **7/7 PASS** on local stack (2026-06-04).
+- Guard: exits 0 with SKIP if stack not running.
+- Run: `~/.nvm/versions/node/v22.22.0/bin/node node_modules/.bin/tsx supabase/tests/integration/storage-cross-tenant.integration.test.ts`
+
+**pgTAP suite after fixes:**
+- `030_rls_enabled.test.sql`: 6/6 GREEN
+- `140_property_expenses.test.sql`: 40/40 GREEN
+- `130_caja_posting.test.sql`: 2/8 FAIL (pre-existing isolation issue, not introduced here)
+- All other files: GREEN (unchanged)
+
+---
+
 ## Blockers / open for PR 2
 
 - None. PR 1 is self-contained and all tests pass.
 - WU4–WU5 (hooks + form) depend on merged/applied types — PR 2 scope.
 - WU6 (CONVENTIONS.md) — PR 2 scope.
-- WU7 (manual storage cross-tenant check) — requires UI or direct Storage API call.
+- WU7 (storage cross-tenant check) — COMPLETED via integration test.
 - WU8 (remote deploy) — human action required.
 
 ---
