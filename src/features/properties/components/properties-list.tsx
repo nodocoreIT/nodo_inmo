@@ -9,6 +9,7 @@ import { useUpdateProperty } from "@/features/properties/hooks/use-update-proper
 import { useDeleteProperty } from "@/features/properties/hooks/use-delete-property";
 import { CreatePropertyDialog } from "./create-property-dialog";
 import { PropertyFormDialog } from "./property-form-dialog";
+import { RegisterExpenseButton } from "@/features/property-expenses/components/register-expense-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -186,9 +187,12 @@ interface RowActionsProps {
   onDeleteConfirm: () => void;
 }
 
-function RowActions({ onEdit, onDeleteConfirm }: RowActionsProps) {
+function RowActions({ property, onEdit, onDeleteConfirm }: RowActionsProps) {
   return (
     <div className="flex items-center justify-end gap-1">
+      {/* "Registrar gasto" — only renders for admin role (gated inside the button) */}
+      <RegisterExpenseButton propertyId={property.id} />
+
       <Button
         variant="ghost"
         size="sm"
