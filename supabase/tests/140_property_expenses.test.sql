@@ -7,7 +7,7 @@
 -- TDD: RED first (table/objects do not exist), GREEN after migration.
 -- Follows the style of 120_caja.test.sql.
 begin;
-select plan(40);
+select plan(52);
 
 -- -----------------------------------------------------------------------
 -- Seed: two orgs, admin + agent for org E, properties with an owner
@@ -58,6 +58,21 @@ select col_is_null('nodo_inmo', 'property_expenses', 'receipt_path', 'property_e
 
 -- R2: FK on property_id
 select col_is_fk('nodo_inmo', 'property_expenses', 'property_id', 'property_expenses.property_id is a FK');
+
+-- R2: column types — regression guard. A silent type change in a future migration
+-- (e.g. amount numeric -> float8, or a uuid -> text) would be caught here.
+select col_type_is('nodo_inmo', 'property_expenses', 'id',               'uuid',                        'property_expenses.id is uuid');
+select col_type_is('nodo_inmo', 'property_expenses', 'org_id',           'uuid',                        'property_expenses.org_id is uuid');
+select col_type_is('nodo_inmo', 'property_expenses', 'property_id',      'uuid',                        'property_expenses.property_id is uuid');
+select col_type_is('nodo_inmo', 'property_expenses', 'type',             'text',                        'property_expenses.type is text');
+select col_type_is('nodo_inmo', 'property_expenses', 'amount',           'numeric(15,2)',               'property_expenses.amount is numeric(15,2)');
+select col_type_is('nodo_inmo', 'property_expenses', 'currency',         'text',                        'property_expenses.currency is text');
+select col_type_is('nodo_inmo', 'property_expenses', 'expense_date',     'date',                        'property_expenses.expense_date is date');
+select col_type_is('nodo_inmo', 'property_expenses', 'description',      'text',                        'property_expenses.description is text');
+select col_type_is('nodo_inmo', 'property_expenses', 'receipt_path',     'text',                        'property_expenses.receipt_path is text');
+select col_type_is('nodo_inmo', 'property_expenses', 'charged_to_owner', 'boolean',                     'property_expenses.charged_to_owner is boolean');
+select col_type_is('nodo_inmo', 'property_expenses', 'created_at',       'timestamp with time zone',    'property_expenses.created_at is timestamptz');
+select col_type_is('nodo_inmo', 'property_expenses', 'updated_at',       'timestamp with time zone',    'property_expenses.updated_at is timestamptz');
 
 -- R3: charged_to_owner has NO column-level default (ADR-4)
 select col_hasnt_default('nodo_inmo', 'property_expenses', 'charged_to_owner', 'property_expenses.charged_to_owner has no default (ADR-4)');
