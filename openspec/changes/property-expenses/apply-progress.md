@@ -140,13 +140,35 @@ All five fixes from the verify-report applied and confirmed GREEN.
 - [x] `caja-page.tsx` StatCard label colors (green for Ingresos, red for Egresos)
 - [x] Commit: `c6846a8 style(caja): color StatCard labels green/red for income/expense`
 
+### UX + test-fix pass (verify-report-pr2 WARNING 1 + WARNING 2) — 2026-06-04
+
+**FIX 1 — WARNING 1: charged_to_owner radio group**
+- Replaced native checkbox with a native Sí/No radio group in `expense-form-dialog.tsx`
+- Neither option is pre-selected (ADR-4 — no default); Zod `required_error` blocks submit
+  until an explicit choice is made
+- `field.onChange(true)` / `field.onChange(false)` guarantee a boolean is always sent
+- Also removed `min={0.01}` from the amount `<input type="number">` — the HTML5
+  constraint validation was silently swallowing form submits in jsdom (browser native
+  validation fires before React's `onSubmit`), preventing the Zod refine error from
+  ever rendering. Validation is enforced solely by Zod.
+- Commit: `b42bba1 fix(property-expenses): explicit Sí/No radio for charged_to_owner`
+
+**FIX 2 — WARNING 2: zero-amount error visibility**
+- `create-expense.test.tsx` zero-amount test now asserts
+  `expect(screen.getByText(/mayor a cero/i)).toBeInTheDocument()` in addition
+  to the existing `expect(mockMutateAsync).not.toHaveBeenCalled()`
+- Added new R23 test: selecting "No" sends `charged_to_owner: false` to the mutation
+- Updated all tests referencing the old checkbox to use
+  `getByRole("radio", { name: /^sí$|^no$/i })` queries
+- Commit: `700e9d1 test(property-expenses): radio assertions + assert zero-amount error is shown`
+
 ---
 
-## Vitest results — PR 2
+## Vitest results — PR 2 (after UX+test-fix pass)
 
 - Test files: 32 passed (33 total — 1 pre-existing non-vitest integration script)
-- Tests: **175 passed / 0 failed**
-- Lint: 0 errors in new files (pre-existing errors in `edit-delete-property.test.tsx` and `database.ts` not introduced here)
+- Tests: **176 passed / 0 failed** (+1 from new "No" radio path test)
+- Lint: 15 problems / 12 errors — baseline unchanged, no new errors introduced
 - Typecheck: passes cleanly
 
 ---
@@ -155,7 +177,7 @@ All five fixes from the verify-report applied and confirmed GREEN.
 
 | Item | Design/Spec | Applied | Reason |
 |------|-------------|---------|--------|
-| charged_to_owner UI | radio or Switch | checkbox | Simpler, accessible, and semantically correct for a binary required field; no Radix Switch installed |
+| charged_to_owner UI | radio or Switch | native Sí/No radio group | No Radix Switch installed; radio group is the correct semantic pattern and matches spec intent (ADR-4 explicit choice) — WARNING 1 resolved |
 | Success toast | "success toast/notification" | onSuccess callback closes dialog (no toast) | No toast system exists in the project yet; inline error alert for failure |
 | orphan object cleanup | best-effort delete on insert error | not implemented | The supabase storage delete call would require a second mutation; left for a follow-up since it's a "best-effort" mitigation per the spec |
 
