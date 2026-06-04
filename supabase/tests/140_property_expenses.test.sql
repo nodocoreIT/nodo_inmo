@@ -7,7 +7,7 @@
 -- TDD: RED first (table/objects do not exist), GREEN after migration.
 -- Follows the style of 120_caja.test.sql.
 begin;
-select plan(36);
+select plan(40);
 
 -- -----------------------------------------------------------------------
 -- Seed: two orgs, admin + agent for org E, properties with an owner
@@ -61,6 +61,14 @@ select col_is_fk('nodo_inmo', 'property_expenses', 'property_id', 'property_expe
 
 -- R3: charged_to_owner has NO column-level default (ADR-4)
 select col_hasnt_default('nodo_inmo', 'property_expenses', 'charged_to_owner', 'property_expenses.charged_to_owner has no default (ADR-4)');
+
+-- R3: runtime enforcement — INSERT omitting charged_to_owner is rejected (NOT NULL violation)
+select throws_ok(
+  $q$ insert into nodo_inmo.property_expenses
+        (org_id, property_id, type, amount, currency, expense_date, description)
+      values
+        ('f0000000-0000-0000-0000-000000000001','e0000000-0000-0000-0000-0000000000b1','arreglo',100,'ARS','2026-06-01','Missing charged_to_owner') $q$,
+  '23502', null, 'R3: INSERT omitting charged_to_owner rejected (NOT NULL violation)');
 
 -- R4: amount > 0 — zero rejected
 select throws_ok(
@@ -169,11 +177,15 @@ select is(
   0, 'TemplateB: org E admin cannot see org F property_expenses (cross-org blocked)');
 
 -- R13: UPDATE cannot reassign org_id (WITH CHECK)
+-- Uses Org F ('f0000000-0000-0000-0000-000000000002'), which is a VALID org seeded above,
+-- so the FK on shared.organizations is satisfied. Only the RLS WITH CHECK predicate
+-- (org_id must match JWT org_id) can block this update — proving the guard is real.
+-- If the policy lacked WITH CHECK, this update would silently reassign the row to Org F.
 select throws_ok(
   $q$ update nodo_inmo.property_expenses
-        set org_id = 'f0000000-0000-0000-0000-000000000099'
+        set org_id = 'f0000000-0000-0000-0000-000000000002'
       where id = 'e0000000-0000-0000-0000-0000000000c1' $q$,
-  null, null, 'RLS: UPDATE cannot reassign org_id (WITH CHECK)');
+  null, null, 'RLS: UPDATE cannot reassign org_id to valid other org (WITH CHECK)');
 
 -- R14: anon role → SELECT is blocked (permission denied — stricter than 0 rows;
 -- anon has no USAGE on nodo_inmo schema by design, so access errors before RLS)
@@ -195,13 +207,32 @@ select is(
   (select public from storage.buckets where id = 'property-expense-receipts'),
   false, 'storage: property-expense-receipts bucket is private (public = false)');
 
--- Storage policies exist on storage.objects — assert all four receipts_admin_* policies
-select policies_are(
-  'storage',
-  'objects',
-  array['receipts_admin_select', 'receipts_admin_insert', 'receipts_admin_update', 'receipts_admin_delete'],
-  'storage.objects has exactly the four receipts_admin_* policies'
-);
+-- Storage policies exist on storage.objects — assert each receipts_admin_* policy individually.
+-- Using ok(exists(...)) instead of policies_are(...) so that adding future bucket policies
+-- (e.g. for contract documents) does not cause a false failure here.
+select ok(
+  exists(select 1 from pg_policies
+         where schemaname = 'storage' and tablename = 'objects'
+           and policyname = 'receipts_admin_select'),
+  'storage policy receipts_admin_select exists');
+
+select ok(
+  exists(select 1 from pg_policies
+         where schemaname = 'storage' and tablename = 'objects'
+           and policyname = 'receipts_admin_insert'),
+  'storage policy receipts_admin_insert exists');
+
+select ok(
+  exists(select 1 from pg_policies
+         where schemaname = 'storage' and tablename = 'objects'
+           and policyname = 'receipts_admin_update'),
+  'storage policy receipts_admin_update exists');
+
+select ok(
+  exists(select 1 from pg_policies
+         where schemaname = 'storage' and tablename = 'objects'
+           and policyname = 'receipts_admin_delete'),
+  'storage policy receipts_admin_delete exists');
 
 -- -----------------------------------------------------------------------
 -- D. Ledger isolation (R26) — inserting expenses does NOT touch cash_movements
