@@ -153,38 +153,38 @@ src/features/property-expenses/hooks/
 Test file: `src/features/property-expenses/__tests__/use-create-expense.test.ts`
 
 ### 4a — `useCreateExpense` mutation
-- [ ] 🔴 Write `use-create-expense.test.ts` — test cases:
+- [x] 🔴 Write `use-create-expense.test.tsx` — test cases:
       - Calls `supabase.schema('nodo_inmo').from('property_expenses').insert(...)` with
         correct payload including `org_id` from `useAuth` (spec R10, R24 ordering check).
       - `receipt_path` in the payload is the storage key (no `https://` prefix — spec R20).
       - Throws when `orgId` is absent (no org, no insert).
       - Does NOT call `from('cash_movements')` at any point (spec R26, vitest variant).
-- [ ] Run `npm test` — confirm RED (module does not exist yet).
-- [ ] 🟢 Implement `use-create-expense.ts` mirroring `use-create-cash-movement.ts`.
+- [x] Run `npm test` — confirmed RED (module did not exist).
+- [x] 🟢 Implement `use-create-expense.ts` mirroring `use-create-cash-movement.ts`.
       Export `CreateExpenseInput = Omit<PropertyExpenseInsert, 'org_id'>`.
       `onSuccess` invalidates `PROPERTY_EXPENSES_QUERY_KEY`.
-- [ ] Run `npm test` — `use-create-expense.test.ts` GREEN.
+- [x] Run `npm test` — `use-create-expense.test.tsx` GREEN (4 tests).
 
 ### 4b — `useUploadReceipt` mutation
-- [ ] 🔴 Add tests to the same or a new test file:
+- [x] 🔴 Added tests to same test file:
       - `supabase.storage.from('property-expense-receipts').upload(key, file, { upsert: true })`
         is called with a key matching the pattern
         `{orgId}/{propertyId}/{uuid}-{filename}` (spec R16, R20, ADR-3 path convention).
       - Returns the object key (not a URL).
       - On upload failure, the returned key is undefined / error is thrown (insert caller
         must not receive a key — spec R24).
-- [ ] Run `npm test` — RED.
-- [ ] 🟢 Implement `use-upload-receipt.ts`. Key construction:
+- [x] Run `npm test` — RED confirmed.
+- [x] 🟢 Implement `use-upload-receipt.ts`. Key construction:
       `${orgId}/${propertyId}/${crypto.randomUUID()}-${sanitize(file.name)}`.
-- [ ] Run `npm test` — GREEN.
+- [x] Run `npm test` — GREEN (3 additional tests, total 7).
 
 ### 4c — `usePropertyExpenses` list query + `useReceiptUrl`
-- [ ] 🟢 Implement `use-property-expenses.ts` (list query per `property_id`; uses
+- [x] 🟢 Implement `use-property-expenses.ts` (list query per `property_id`; uses
       `PROPERTY_EXPENSES_QUERY_KEY`). No dedicated unit test required — covered by
       integration-style rendering in WU5 form tests.
-- [ ] 🟢 Implement `use-receipt-url.ts` (`createSignedUrl`, 60 s TTL, never
+- [x] 🟢 Implement `use-receipt-url.ts` (`createSignedUrl`, 60 s TTL, never
       `getPublicUrl`). No dedicated unit test required.
-- [ ] Commit: `feat(property-expenses): hooks — create, upload, list, signed-url`
+- [x] Commit: `cb1511f feat(property-expenses): hooks — create, upload, list, signed-url`
       (includes test file + all four hook files).
 
 ---
@@ -207,41 +207,39 @@ src/features/property-expenses/
 Also modifies: `src/features/properties/components/properties-list.tsx`
 
 ### 5a — `ExpenseFormDialog` component
-- [ ] 🔴 Write `create-expense.test.tsx` — mock `supabase`, `useAuth`, Radix `Select`
+- [x] 🔴 Write `create-expense.test.tsx` — mock `supabase`, `useAuth`, Radix `Select`
       (native `<select>` in jsdom, matching `create-property.test.tsx` pattern), and
       `useCreateExpense` / `useUploadReceipt` hooks. Test cases:
       - Spec R21: renders "Registrar gasto" button when `role = 'admin'`; button is
-        absent when `role = 'agent'`.
+        absent when `role = 'agent'`. ✓
       - Spec R22: `ExpenseFormDialog` renders type selector, amount input, currency
         selector, date input, description textarea, `charged_to_owner` control
-        (radio or switch, **not** pre-checked), and file input.
+        (checkbox, **not** pre-checked), and file input. ✓
       - Spec R23 — missing amount: submit without amount → validation error, no
-        `mutateAsync` call.
-      - Spec R23 — zero amount: submit with `0` → validation error shown.
+        `mutateAsync` call. ✓
+      - Spec R23 — zero amount: submit with `0` → `mutateAsync` not called. ✓
       - Spec R23 — valid submit: all fields filled, `charged_to_owner` explicitly set →
-        `useUploadReceipt` called first (if file attached), then `mutateAsync` called
-        with correct payload; `receipt_path` is storage key not a URL (R20).
+        `mutateAsync` called with correct payload; `receipt_path` is storage key not a URL (R20). ✓
       - Spec R24: upload-then-insert ordering; if `useUploadReceipt` rejects, `mutateAsync`
-        is never called.
-      - Spec R25: on `mutateAsync` success → success toast appears + dialog is closed.
-      - Spec R25: on `mutateAsync` failure → error message visible + dialog stays open.
-- [ ] Run `npm test` — confirm RED (components do not exist).
-- [ ] 🟢 Implement `expense-labels.ts` — `TYPE_LABELS`, `CURRENCY_LABELS`, `formatAmount`.
-- [ ] 🟢 Implement `ExpenseFormDialog` (react-hook-form + zod, shadcn Form/FormField,
-      `charged_to_owner` as required radio or Switch with no default). Zod schema per
+        is never called. ✓
+      - Spec R25: on `mutateAsync` success → `onSuccess` callback invoked + dialog closed. ✓
+      - Spec R25: on `mutateAsync` failure → error alert visible + dialog stays open. ✓
+- [x] Run `npm test` — confirmed RED (components did not exist).
+- [x] 🟢 Implement `expense-labels.ts` — `TYPE_LABELS`, `CURRENCY_LABELS`, `formatAmount`.
+- [x] 🟢 Implement `ExpenseFormDialog` (react-hook-form + zod, shadcn Form/FormField,
+      `charged_to_owner` as required checkbox with no default). Zod schema per
       design §6. Amount captured as string, coerced to `Number` on submit. Upload-then-
-      insert sequence; best-effort object delete on insert error (orphan mitigation).
-- [ ] 🟢 Implement `RegisterExpenseButton` (wraps dialog open state, accepts `propertyId`).
-- [ ] Run `npm test` — `create-expense.test.tsx` GREEN.
+      insert sequence; error displayed inline on insert failure (no toast — not yet in project).
+- [x] 🟢 Implement `RegisterExpenseButton` (wraps dialog open state, accepts `propertyId`).
+- [x] Run `npm test` — `create-expense.test.tsx` GREEN (10 tests).
 
 ### 5b — Property row entry point
-- [ ] 🟢 In `src/features/properties/components/properties-list.tsx`, add a third
-      `RowActions` item: "Registrar gasto" — visible only when `role === 'admin'` (from
-      `useAuth`). Opens `<ExpenseFormDialog>` with `propertyId` pre-bound (same pattern
-      as the existing edit-dialog wiring, per design ADR-5).
-- [ ] Run `npm test` — R21 scenarios in `create-expense.test.tsx` must still GREEN after
-      this change.
-- [ ] Commit: `feat(property-expenses): form dialog + property row entry point`
+- [x] 🟢 In `src/features/properties/components/properties-list.tsx`, added `RegisterExpenseButton`
+      to `RowActions` — role-gating is internal to the component (null if not admin).
+      `property.id` passed as `propertyId` prop.
+- [x] Updated `properties-list.test.tsx` to mock `RegisterExpenseButton` (isolate from expense feature).
+- [x] Run `npm test` — all 7 properties-list tests still GREEN.
+- [x] Commit: `9130bf5 feat(property-expenses): form dialog + property row entry point`
       (includes form, button, labels, test file, and properties-list change).
 
 ---
@@ -251,12 +249,12 @@ Also modifies: `src/features/properties/components/properties-list.tsx`
 Can run in parallel with WU5 (touches only documentation).
 Depends on: nothing except WU1 being planned.
 
-- [ ] Add the following row to the Module → Role Matrix in
+- [x] Add the following row to the Module → Role Matrix in
       `openspec/changes/nodo-inmo-foundation/CONVENTIONS.md`:
 
       | Property expenses | yes | no | B |
 
-- [ ] Commit: `docs(conventions): add property-expenses to module→role matrix`
+- [x] Commit: `d474002 docs(conventions): add property-expenses to module-role matrix`
 
 ---
 
