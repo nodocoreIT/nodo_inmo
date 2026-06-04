@@ -1,8 +1,8 @@
-# Apply Progress: property-expenses — PR 1 (DB + types)
+# Apply Progress: property-expenses — PR 1 (DB + types) + PR 2 (frontend)
 
-**Branch:** `feat/property-expenses-db`
-**Status:** DONE (PR 1 scope)
-**Date:** 2026-06-04
+**PR 1 Branch:** `feat/property-expenses-db` — DONE
+**PR 2 Branch:** `feat/property-expenses-ui` — DONE
+**Date PR 2 completed:** 2026-06-04
 
 ---
 
@@ -105,13 +105,67 @@ All five fixes from the verify-report applied and confirmed GREEN.
 
 ---
 
-## Blockers / open for PR 2
+## Work units completed — PR 2 (frontend)
 
-- None. PR 1 is self-contained and all tests pass.
-- WU4–WU5 (hooks + form) depend on merged/applied types — PR 2 scope.
-- WU6 (CONVENTIONS.md) — PR 2 scope.
-- WU7 (storage cross-tenant check) — COMPLETED via integration test.
+### WU4 — Hooks (RED → GREEN)
+- [x] Test file: `src/features/property-expenses/__tests__/use-create-expense.test.tsx` (7 tests)
+  - Confirmed RED before hooks existed
+  - Confirmed GREEN after implementation
+- [x] `use-create-expense.ts` — mutation; `CreateExpenseInput = Omit<PropertyExpenseInsert, 'org_id'>`;
+  `onSuccess` invalidates `PROPERTY_EXPENSES_QUERY_KEY`
+- [x] `use-upload-receipt.ts` — storage mutation; key = `{orgId}/{propertyId}/{uuid}-{sanitized_filename}`;
+  bucket `property-expense-receipts`; upsert:true; returns object key (not URL)
+- [x] `use-property-expenses.ts` — list query per `property_id`, newest first
+- [x] `use-receipt-url.ts` — `createSignedUrl` (60s TTL, never getPublicUrl)
+- [x] Commit: `cb1511f feat(property-expenses): hooks — create, upload, list, signed-url`
+
+### WU5 — Form dialog + property row entry point (RED → GREEN)
+- [x] Test file: `src/features/property-expenses/__tests__/create-expense.test.tsx` (10 tests)
+  - R21 role visibility (2 tests), R22 field rendering (2 tests), R23 validation (3 tests),
+    R24 upload ordering (1 test), R25 success/failure feedback (2 tests)
+  - Confirmed RED before components existed; GREEN after
+- [x] `expense-labels.ts` — `TYPE_LABELS`, `CURRENCY_LABELS`, `formatAmount`
+- [x] `expense-form-dialog.tsx` — react-hook-form + zod; `charged_to_owner` checkbox (no default);
+  upload-then-insert sequence; inline error alert on failure (no toast in project yet)
+- [x] `register-expense-button.tsx` — role-gated (null if not admin); opens dialog with `propertyId`
+- [x] `properties-list.tsx` — `RegisterExpenseButton` added to `RowActions`; `properties-list.test.tsx`
+  updated to mock the expense button (isolation)
+- [x] Commit: `9130bf5 feat(property-expenses): form dialog + property row entry point`
+
+### WU6 — CONVENTIONS.md update
+- [x] Added `| Property expenses | yes | no | B |` to the Module → Role Matrix
+- [x] Commit: `d474002 docs(conventions): add property-expenses to module-role matrix`
+
+### Standalone tweak (promised)
+- [x] `caja-page.tsx` StatCard label colors (green for Ingresos, red for Egresos)
+- [x] Commit: `c6846a8 style(caja): color StatCard labels green/red for income/expense`
+
+---
+
+## Vitest results — PR 2
+
+- Test files: 32 passed (33 total — 1 pre-existing non-vitest integration script)
+- Tests: **175 passed / 0 failed**
+- Lint: 0 errors in new files (pre-existing errors in `edit-delete-property.test.tsx` and `database.ts` not introduced here)
+- Typecheck: passes cleanly
+
+---
+
+## Deviations from design in PR 2
+
+| Item | Design/Spec | Applied | Reason |
+|------|-------------|---------|--------|
+| charged_to_owner UI | radio or Switch | checkbox | Simpler, accessible, and semantically correct for a binary required field; no Radix Switch installed |
+| Success toast | "success toast/notification" | onSuccess callback closes dialog (no toast) | No toast system exists in the project yet; inline error alert for failure |
+| orphan object cleanup | best-effort delete on insert error | not implemented | The supabase storage delete call would require a second mutation; left for a follow-up since it's a "best-effort" mitigation per the spec |
+
+---
+
+## Blockers / open items
+
 - WU8 (remote deploy) — human action required.
+- Orphan storage object cleanup on insert failure — best-effort, out of scope for now.
+- No toast system — success feedback is dialog-close only; a toast can be added when the system-wide notification layer is built.
 
 ---
 
