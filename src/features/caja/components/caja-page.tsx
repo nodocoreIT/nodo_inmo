@@ -13,8 +13,14 @@ import { useCashMovements } from "@/features/caja/hooks/use-cash-movements";
 import { useOwnerSettlements } from "@/features/caja/hooks/use-owner-settlements";
 import { useSettleOwner } from "@/features/caja/hooks/use-settle-owner";
 import { MovementFormDialog } from "./movement-form-dialog";
-import { computeTotals, groupPendingByOwner } from "@/features/caja/lib/caja-math";
-import { formatMoney, formatDate } from "@/features/contracts/lib/contract-labels";
+import {
+  computeTotals,
+  groupPendingByOwner,
+} from "@/features/caja/lib/caja-math";
+import {
+  formatMoney,
+  formatDate,
+} from "@/features/contracts/lib/contract-labels";
 import { cn } from "@/shared/lib/utils";
 
 type Tab = "movimientos" | "liquidaciones";
@@ -31,10 +37,16 @@ export function CajaPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap gap-2">
-        <TabButton active={tab === "movimientos"} onClick={() => setTab("movimientos")}>
+        <TabButton
+          active={tab === "movimientos"}
+          onClick={() => setTab("movimientos")}
+        >
           Movimientos
         </TabButton>
-        <TabButton active={tab === "liquidaciones"} onClick={() => setTab("liquidaciones")}>
+        <TabButton
+          active={tab === "liquidaciones"}
+          onClick={() => setTab("liquidaciones")}
+        >
           Liquidaciones
         </TabButton>
       </div>
@@ -71,14 +83,21 @@ function StatCard({
   label,
   value,
   valueClass,
+  labelClass,
 }: {
   label: string;
   value: string;
   valueClass: string;
+  labelClass?: string;
 }) {
   return (
     <div className="rounded-md border border-border bg-card px-5 py-4 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate2">
+      <p
+        className={cn(
+          "text-xs font-bold uppercase tracking-wide",
+          labelClass ?? "text-slate2",
+        )}
+      >
         {label}
       </p>
       <p className={cn("mt-1 text-2xl font-bold", valueClass)}>{value}</p>
@@ -105,8 +124,18 @@ function MovementsTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Ingresos" value={formatMoney(income, "ARS")} valueClass="text-green-700" />
-        <StatCard label="Egresos" value={formatMoney(expense, "ARS")} valueClass="text-destructive" />
+        <StatCard
+          label="Ingresos"
+          value={formatMoney(income, "ARS")}
+          valueClass="text-green-700"
+          labelClass="text-green-700"
+        />
+        <StatCard
+          label="Egresos"
+          value={formatMoney(expense, "ARS")}
+          valueClass="text-destructive"
+          labelClass="text-destructive"
+        />
         <StatCard
           label="Saldo de caja"
           value={formatMoney(balance, "ARS")}
@@ -115,21 +144,30 @@ function MovementsTab() {
       </div>
 
       {isLoading && (
-        <div role="status" aria-label="Cargando caja" className="flex items-center justify-center py-16">
+        <div
+          role="status"
+          aria-label="Cargando caja"
+          className="flex items-center justify-center py-16"
+        >
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
           <span className="sr-only">Cargando…</span>
         </div>
       )}
 
       {isError && (
-        <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
           Error al cargar la caja. Intentá de nuevo.
         </div>
       )}
 
       {!isLoading && !isError && movements.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-mist py-16 text-center">
-          <p className="text-sm font-medium text-slate2">Todavía no hay movimientos</p>
+          <p className="text-sm font-medium text-slate2">
+            Todavía no hay movimientos
+          </p>
           <p className="text-xs text-slate2-300">
             Los cobros generan ingresos automáticamente, o cargá uno manual.
           </p>
@@ -159,7 +197,9 @@ function MovementsTab() {
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 font-medium",
-                        m.type === "income" ? "text-green-700" : "text-destructive",
+                        m.type === "income"
+                          ? "text-green-700"
+                          : "text-destructive",
                       )}
                     >
                       {m.type === "income" ? (
@@ -198,23 +238,33 @@ function SettlementsTab() {
   return (
     <div className="flex flex-col gap-6">
       {isLoading && (
-        <div role="status" aria-label="Cargando liquidaciones" className="flex items-center justify-center py-16">
+        <div
+          role="status"
+          aria-label="Cargando liquidaciones"
+          className="flex items-center justify-center py-16"
+        >
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
           <span className="sr-only">Cargando…</span>
         </div>
       )}
 
       {isError && (
-        <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
           Error al cargar las liquidaciones. Intentá de nuevo.
         </div>
       )}
 
       {!isLoading && !isError && groups.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-mist py-16 text-center">
-          <p className="text-sm font-medium text-slate2">No hay liquidaciones pendientes</p>
+          <p className="text-sm font-medium text-slate2">
+            No hay liquidaciones pendientes
+          </p>
           <p className="text-xs text-slate2-300">
-            Cuando cobres alquileres de propiedades con dueño, acá vas a ver cuánto liquidarle.
+            Cuando cobres alquileres de propiedades con dueño, acá vas a ver
+            cuánto liquidarle.
           </p>
         </div>
       )}
