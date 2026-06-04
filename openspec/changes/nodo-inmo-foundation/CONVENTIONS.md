@@ -72,6 +72,7 @@ create policy "admin_delete" on nodo_inmo.<t> for delete to authenticated
 | Cash / Caja movements        |  yes  |  no   | B        |
 | Bank accounts                |  yes  |  no   | B        |
 | Financial reports            |  yes  |  no   | B        |
+| Property expenses            |  yes  |  no   | B        |
 
 Each future module change MUST pick Template A or B explicitly. The UI hides
 what the role cannot access, but that is presentation only — the RLS gate
