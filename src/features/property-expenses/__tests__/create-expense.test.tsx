@@ -6,9 +6,11 @@
  * Spec coverage:
  *   R21 — "Registrar gasto" visible for admin, hidden for agent
  *   R22 — form renders all required fields (type, amount, currency, date,
- *          description, charged_to_owner, file input); charged_to_owner NOT pre-checked
- *   R23 — missing/zero amount → validation error, no mutateAsync call
+ *          description, charged_to_owner radio group, file input);
+ *          neither Sí nor No radio is pre-selected (no default — ADR-4)
+ *   R23 — missing/zero amount → validation error visible + no mutateAsync call
  *   R23 — valid submit → mutateAsync called with correct payload; receipt_path is a key not a URL
+ *   R23 — charged_to_owner: false path — selecting "No" sends boolean false
  *   R24 — upload-then-insert ordering; if upload rejects, mutateAsync is never called
  *   R25 — success: dialog closes (onSuccess callback); failure: error visible + dialog stays open
  *
@@ -133,6 +135,7 @@ function renderDialog(props: {
 /**
  * Fill all required fields with valid values.
  * date input: use clear() + type() to avoid appending to the default date value.
+ * charged_to_owner: click the "Sí" radio button (charged_to_owner = true).
  */
 async function fillValidForm() {
   const selects = screen.getAllByRole("combobox");
@@ -145,9 +148,8 @@ async function fillValidForm() {
   await userEvent.clear(dateInput);
   await userEvent.type(dateInput, "2026-06-04");
   await userEvent.type(screen.getByLabelText(/descripci[oó]n/i), "Pintura exterior");
-  await userEvent.click(
-    screen.getByRole("checkbox", { name: /cargo del propietario|charged_to_owner/i }),
-  );
+  // charged_to_owner: click the "Sí" radio (explicit choice)
+  await userEvent.click(screen.getByRole("radio", { name: /^sí$/i }));
 }
 
 // ── R21: Visibility by role ───────────────────────────────────────────────────
@@ -178,7 +180,7 @@ describe("ExpenseFormDialog — R22 field rendering", () => {
     mockAuthState.role = "admin";
   });
 
-  it("renders type selector, amount input, currency selector, date input, description textarea, charged_to_owner checkbox, and file input", () => {
+  it("renders type selector, amount input, currency selector, date input, description textarea, charged_to_owner radio group, and file input", () => {
     renderDialog();
 
     // Native selects rendered by the Select mock
@@ -194,20 +196,19 @@ describe("ExpenseFormDialog — R22 field rendering", () => {
     // Description textarea
     expect(screen.getByLabelText(/descripci[oó]n/i)).toBeInTheDocument();
 
-    // charged_to_owner checkbox
-    expect(
-      screen.getByRole("checkbox", { name: /cargo del propietario/i }),
-    ).toBeInTheDocument();
+    // charged_to_owner radio group — both options present
+    expect(screen.getByRole("radio", { name: /^sí$/i })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /^no$/i })).toBeInTheDocument();
 
     // File input for receipt
     const fileInput = document.querySelector('input[type="file"]');
     expect(fileInput).toBeInTheDocument();
   });
 
-  it("charged_to_owner checkbox is NOT pre-checked (no default — ADR-4)", () => {
+  it("neither Sí nor No radio is pre-selected (no default — ADR-4)", () => {
     renderDialog();
-    const checkbox = screen.getByRole("checkbox", { name: /cargo del propietario/i });
-    expect(checkbox).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: /^sí$/i })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: /^no$/i })).not.toBeChecked();
   });
 });
 
@@ -242,17 +243,17 @@ describe("ExpenseFormDialog — R23 validation", () => {
     await userEvent.clear(dateInput);
     await userEvent.type(dateInput, "2026-06-04");
     await userEvent.type(screen.getByLabelText(/descripci[oó]n/i), "Prueba");
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: /cargo del propietario/i }),
-    );
+    // charged_to_owner: click the "Sí" radio (explicit choice)
+    await userEvent.click(screen.getByRole("radio", { name: /^sí$/i }));
     await userEvent.click(screen.getByRole("button", { name: /guardar/i }));
     await waitFor(() => {
-      // Should show some error about amount being invalid (refine message)
+      // The refine error message MUST be visible in the DOM (R23 — "a validation error is shown")
+      expect(screen.getByText(/mayor a cero/i)).toBeInTheDocument();
       expect(mockMutateAsync).not.toHaveBeenCalled();
-    });
+    }, { timeout: 3000 });
   });
 
-  it("calls mutateAsync with correct payload on valid submit", async () => {
+  it("calls mutateAsync with correct payload on valid submit (charged_to_owner: true)", async () => {
     mockMutateAsync.mockResolvedValue({ id: "exp-new" });
 
     renderDialog();
@@ -274,6 +275,31 @@ describe("ExpenseFormDialog — R23 validation", () => {
     if (payload.receipt_path) {
       expect(payload.receipt_path).not.toMatch(/^https?:\/\//);
     }
+  });
+
+  it("sends charged_to_owner: false when user selects 'No' radio (explicit false path)", async () => {
+    mockMutateAsync.mockResolvedValue({ id: "exp-no" });
+
+    renderDialog();
+    // Fill all required fields, but select "No" for charged_to_owner
+    const selects = screen.getAllByRole("combobox");
+    await userEvent.selectOptions(selects[0], "arreglo");
+    await userEvent.clear(screen.getByLabelText(/monto/i));
+    await userEvent.type(screen.getByLabelText(/monto/i), "1000");
+    await userEvent.selectOptions(selects[1], "ARS");
+    const dateInput = screen.getByLabelText(/fecha/i);
+    await userEvent.clear(dateInput);
+    await userEvent.type(dateInput, "2026-06-04");
+    await userEvent.type(screen.getByLabelText(/descripci[oó]n/i), "Gasto interno");
+    await userEvent.click(screen.getByRole("radio", { name: /^no$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /guardar/i }));
+
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledOnce(), { timeout: 3000 });
+
+    const payload = mockMutateAsync.mock.calls[0][0];
+    expect(payload).toMatchObject({
+      charged_to_owner: false,
+    });
   });
 });
 
