@@ -3,6 +3,8 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useProperties } from "@/features/properties/hooks/use-properties";
 import type { PropertyRow } from "@/features/properties/hooks/use-properties";
+import { useSearchStore } from "@/shared/search/use-search-store";
+import { matchesQuery } from "@/shared/search/matches-query";
 import { useUpdateProperty } from "@/features/properties/hooks/use-update-property";
 import { useDeleteProperty } from "@/features/properties/hooks/use-delete-property";
 import { CreatePropertyDialog } from "./create-property-dialog";
@@ -35,22 +37,25 @@ import {
 
 export function PropertiesList() {
   const { data, isLoading, isError } = useProperties();
+  const query = useSearchStore((s) => s.query);
   const [createOpen, setCreateOpen] = useState(false);
   const [editProperty, setEditProperty] = useState<PropertyRow | null>(null);
 
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
 
+  const filtered = (data ?? []).filter((p) =>
+    matchesQuery(
+      [p.address, p.property_type, p.operation, p.status, p.description],
+      query,
+    ),
+  );
+  const noResults = !!data && data.length > 0 && filtered.length === 0;
+
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-navy">Propiedades</h2>
-          <p className="mt-1 text-sm text-slate2">
-            Listado de propiedades de la agencia
-          </p>
-        </div>
+      {/* Action row */}
+      <div className="flex items-center justify-end">
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           Nueva propiedad
@@ -89,7 +94,15 @@ export function PropertiesList() {
         </div>
       )}
 
-      {!isLoading && !isError && data && data.length > 0 && (
+      {!isLoading && !isError && noResults && (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-mist py-12 text-center">
+          <p className="text-sm font-medium text-slate2">
+            Sin resultados para "{query}"
+          </p>
+        </div>
+      )}
+
+      {!isLoading && !isError && filtered.length > 0 && (
         <div className="rounded-md border border-border bg-card shadow-sm">
           <Table>
             <TableHeader>
@@ -104,7 +117,7 @@ export function PropertiesList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((property) => (
+              {filtered.map((property) => (
                 <TableRow key={property.id}>
                   <TableCell className="font-medium">
                     {property.address}

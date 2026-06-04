@@ -7,8 +7,96 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   nodo_inmo: {
     Tables: {
+      cash_movements: {
+        Row: {
+          amount: number
+          category: string | null
+          concept: string
+          created_at: string
+          currency: string
+          date: string
+          id: string
+          org_id: string
+          owner_id: string | null
+          payment_id: string | null
+          source: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          concept: string
+          created_at?: string
+          currency?: string
+          date?: string
+          id?: string
+          org_id: string
+          owner_id?: string | null
+          payment_id?: string | null
+          source?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          concept?: string
+          created_at?: string
+          currency?: string
+          date?: string
+          id?: string
+          org_id?: string
+          owner_id?: string | null
+          payment_id?: string | null
+          source?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           address: string | null
@@ -62,6 +150,236 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      contract_guarantors: {
+        Row: {
+          contract_id: string
+          created_at: string
+          guarantor_id: string
+          id: string
+          org_id: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          guarantor_id: string
+          id?: string
+          org_id: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          guarantor_id?: string
+          id?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_guarantors_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_guarantors_guarantor_id_fkey"
+            columns: ["guarantor_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          adjustment_index: string
+          adjustment_period_months: number
+          commission_amount: number | null
+          created_at: string
+          currency: string
+          deposit_amount: number | null
+          end_date: string
+          expenses_paid_by: string
+          id: string
+          next_adjustment_date: string | null
+          notes: string | null
+          org_id: string
+          property_id: string
+          rent_amount: number
+          start_date: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          adjustment_index?: string
+          adjustment_period_months?: number
+          commission_amount?: number | null
+          created_at?: string
+          currency?: string
+          deposit_amount?: number | null
+          end_date: string
+          expenses_paid_by?: string
+          id?: string
+          next_adjustment_date?: string | null
+          notes?: string | null
+          org_id: string
+          property_id: string
+          rent_amount: number
+          start_date: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          adjustment_index?: string
+          adjustment_period_months?: number
+          commission_amount?: number | null
+          created_at?: string
+          currency?: string
+          deposit_amount?: number | null
+          end_date?: string
+          expenses_paid_by?: string
+          id?: string
+          next_adjustment_date?: string | null
+          notes?: string | null
+          org_id?: string
+          property_id?: string
+          rent_amount?: number
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_settlements: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          org_id: string
+          owner_id: string
+          payment_id: string
+          settled_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          org_id: string
+          owner_id: string
+          payment_id: string
+          settled_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          org_id?: string
+          owner_id?: string
+          payment_id?: string
+          settled_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_settlements_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_settlements_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          contract_id: string
+          created_at: string
+          currency: string
+          due_date: string
+          id: string
+          notes: string | null
+          org_id: string
+          paid_amount: number | null
+          paid_date: string | null
+          payment_method: string | null
+          period: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          contract_id: string
+          created_at?: string
+          currency?: string
+          due_date: string
+          id?: string
+          notes?: string | null
+          org_id: string
+          paid_amount?: number | null
+          paid_date?: string | null
+          payment_method?: string | null
+          period: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string
+          created_at?: string
+          currency?: string
+          due_date?: string
+          id?: string
+          notes?: string | null
+          org_id?: string
+          paid_amount?: number | null
+          paid_date?: string | null
+          payment_method?: string | null
+          period?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       properties: {
         Row: {
@@ -128,9 +446,90 @@ export type Database = {
           },
         ]
       }
+      property_expenses: {
+        Row: {
+          amount: number
+          charged_to_owner: boolean
+          created_at: string
+          currency: string
+          description: string
+          expense_date: string
+          id: string
+          org_id: string
+          property_id: string
+          receipt_path: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          charged_to_owner: boolean
+          created_at?: string
+          currency?: string
+          description: string
+          expense_date?: string
+          id?: string
+          org_id: string
+          property_id: string
+          receipt_path?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          charged_to_owner?: boolean
+          created_at?: string
+          currency?: string
+          description?: string
+          expense_date?: string
+          id?: string
+          org_id?: string
+          property_id?: string
+          receipt_path?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_expenses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      owner_chargeable_expenses: {
+        Row: {
+          amount: number | null
+          currency: string | null
+          description: string | null
+          expense_date: string | null
+          expense_id: string | null
+          org_id: string | null
+          owner_id: string | null
+          property_id: string | null
+          type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_owner_contact_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_expenses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
@@ -425,6 +824,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   nodo_inmo: {
     Enums: {},
   },

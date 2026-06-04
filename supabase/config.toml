@@ -118,6 +118,11 @@ file_size_limit = "50MiB"
 # allowed_mime_types = ["image/png", "image/jpeg"]
 # objects_path = "./images"
 
+[storage.buckets.property-expense-receipts]
+public = false
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+
 # Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true
