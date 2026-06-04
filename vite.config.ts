@@ -16,5 +16,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     css: true,
+    // Vitest owns the unit/component tests under src only. Database (pgTAP)
+    // and Storage integration tests live under supabase/ and run via their
+    // own runners (`supabase test db` / `npm run test:integration`).
+    include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },
 });
