@@ -225,7 +225,6 @@ export function ExpenseFormDialog({
                         id="expense-amount-input"
                         aria-label="Monto"
                         type="number"
-                        min={0.01}
                         step="0.01"
                         placeholder="0.00"
                         {...field}
@@ -277,29 +276,42 @@ export function ExpenseFormDialog({
               )}
             />
 
-            {/* charged_to_owner — required, no default (ADR-4) */}
+            {/* charged_to_owner — required, explicit Sí/No choice, no default (ADR-4) */}
             <FormField
               control={form.control as any}
               name="charged_to_owner"
               render={({ field }) => (
                 <FormItem>
-                  <div className="flex items-center gap-2">
-                    <FormControl>
+                  <FormLabel className="text-sm font-medium">
+                    ¿A cargo del propietario?
+                  </FormLabel>
+                  <div
+                    role="radiogroup"
+                    aria-label="¿A cargo del propietario?"
+                    className="flex gap-6"
+                  >
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
                       <input
-                        id="expense-charged-to-owner"
-                        type="checkbox"
-                        aria-label="A cargo del propietario"
+                        type="radio"
+                        name="charged_to_owner"
+                        aria-label="Sí"
                         checked={field.value === true}
-                        onChange={(e) => field.onChange(e.target.checked)}
-                        className="h-4 w-4 rounded-sm border border-input accent-brand focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        onChange={() => field.onChange(true)}
+                        className="h-4 w-4 accent-brand focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                       />
-                    </FormControl>
-                    <FormLabel
-                      htmlFor="expense-charged-to-owner"
-                      className="cursor-pointer text-sm font-normal"
-                    >
-                      A cargo del propietario
-                    </FormLabel>
+                      Sí
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="charged_to_owner"
+                        aria-label="No"
+                        checked={field.value === false}
+                        onChange={() => field.onChange(false)}
+                        className="h-4 w-4 accent-brand focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                      />
+                      No
+                    </label>
                   </div>
                   <FormMessage />
                 </FormItem>
