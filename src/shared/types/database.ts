@@ -268,6 +268,42 @@ export type Database = {
           },
         ]
       }
+      org_profiles: {
+        Row: {
+          address: string | null
+          created_at: string
+          cuit: string | null
+          email: string | null
+          legal_name: string | null
+          logo_path: string | null
+          org_id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          cuit?: string | null
+          email?: string | null
+          legal_name?: string | null
+          logo_path?: string | null
+          org_id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          cuit?: string | null
+          email?: string | null
+          legal_name?: string | null
+          logo_path?: string | null
+          org_id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       owner_settlements: {
         Row: {
           amount: number
