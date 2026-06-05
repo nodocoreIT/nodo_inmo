@@ -12,7 +12,7 @@
 -- TDD: RED first (columns/RPC do not exist), GREEN after B-WU2 migration.
 -- Follows the style of 120_caja.test.sql and 140_property_expenses.test.sql.
 begin;
-select plan(33);
+select plan(38);
 
 -- -----------------------------------------------------------------------
 -- Seed: org G (admin + agent), org H (wrong-org admin), owner + two properties,
@@ -71,6 +71,31 @@ update nodo_inmo.payments set status = 'paid', paid_date = '2026-01-08'
     'b0000000-0000-0000-0000-0000000000d2',
     'b0000000-0000-0000-0000-0000000000d3'
   );
+
+-- WARNING-2: property commission_rate is NULL and contact commission_rate is 0 (the minimum
+-- allowed by the NOT-NULL constraint with default 10.00). Tests the documented fallback:
+-- coalesce(p.commission_rate=NULL, coalesce(ct.commission_rate=0, 0)) = 0.
+-- Defined behavior: commission = 0, owner_share = full amount.
+-- Note: contacts.commission_rate has a NOT-NULL constraint; setting it to 0 is the closest
+-- testable proxy for the "effectively zero commission" path described in the spec.
+-- d6: property b3 NULL rate + contact a3 rate=0.00 → 80000 * 0% = 0
+insert into nodo_inmo.contacts (id, org_id, name, roles, commission_rate) values
+  ('b0000000-0000-0000-0000-0000000000a3', 'b0000000-0000-0000-0000-000000000001', 'Owner Zero-Rate', array['owner']::text[], 0.00);
+
+insert into nodo_inmo.properties (id, org_id, owner_id, address, operation, property_type, status, currency, commission_rate) values
+  ('b0000000-0000-0000-0000-0000000000b3', 'b0000000-0000-0000-0000-000000000001',
+   'b0000000-0000-0000-0000-0000000000a3', 'Calle G 300', 'rent', 'apartment', 'available', 'ARS', null);
+
+insert into nodo_inmo.contracts (id, org_id, property_id, tenant_id, start_date, end_date, rent_amount) values
+  ('b0000000-0000-0000-0000-0000000000c3', 'b0000000-0000-0000-0000-000000000001',
+   'b0000000-0000-0000-0000-0000000000b3', 'b0000000-0000-0000-0000-0000000000a2', '2026-01-01', '2027-01-01', 80000);
+
+insert into nodo_inmo.payments (id, org_id, contract_id, period, due_date, amount) values
+  ('b0000000-0000-0000-0000-0000000000d6', 'b0000000-0000-0000-0000-000000000001',
+   'b0000000-0000-0000-0000-0000000000c3', '2026-01-01', '2026-01-10', 80000);
+
+update nodo_inmo.payments set status = 'paid', paid_date = '2026-01-09'
+  where id = 'b0000000-0000-0000-0000-0000000000d6';
 
 -- Property-expense fixtures:
 -- E1: ARS, charged_to_owner = true  → consumed by ARS seal
@@ -135,6 +160,22 @@ select is(
    where payment_id = 'b0000000-0000-0000-0000-0000000000d3' and source = 'commission'),
   8000.00,
   'trigger: contact commission_rate (8%) used when property rate is NULL (fallback)');
+
+-- WARNING-2: property commission_rate is NULL, contact commission_rate is 0 (zero-rate proxy).
+-- Tests: coalesce(NULL, coalesce(0.00, 0)) = 0 → posted commission = 0 (documented behavior).
+-- d6: property b3 NULL rate + contact a3 rate=0.00 → 80000 * 0% = 0
+select is(
+  (select amount from nodo_inmo.cash_movements
+   where payment_id = 'b0000000-0000-0000-0000-0000000000d6' and source = 'commission'),
+  0.00,
+  'trigger (WARNING-2): property-NULL + contact-0 commission_rate → posted commission = 0');
+
+-- d6 owner_settlement amount should equal full payment (80000 - 0 = 80000)
+select is(
+  (select amount from nodo_inmo.owner_settlements
+   where payment_id = 'b0000000-0000-0000-0000-0000000000d6'),
+  80000.00,
+  'trigger (WARNING-2): zero effective commission → owner_settlement.amount = full payment amount');
 
 -- -----------------------------------------------------------------------
 -- C. Golden case — atomic seal (as admin of org G)
@@ -264,6 +305,35 @@ select is(
    where id = 'b0000000-0000-0000-0000-0000000000e3'),
   true,
   'golden: charged_to_owner=false expense never stamped');
+
+-- CRITICAL-1 regression guard: deduction element must use key 'id', not 'expense_id'.
+-- This assertion directly catches the key-name drift described in CRITICAL-1.
+select is(
+  (select breakdown->'deductions'->0->>'id' from nodo_inmo.owner_settlements
+   where payment_id = 'b0000000-0000-0000-0000-0000000000d1'),
+  'b0000000-0000-0000-0000-0000000000e1'::text,
+  'golden (CRITICAL-1): deduction element key is ''id'' and contains the correct expense UUID');
+
+select is(
+  (select (breakdown->'deductions'->0->>'amount')::numeric from nodo_inmo.owner_settlements
+   where payment_id = 'b0000000-0000-0000-0000-0000000000d1'),
+  12000.00,
+  'golden (CRITICAL-1): deduction element ''amount'' has correct value');
+
+-- CRITICAL-2 regression guard: the set of stamped expense IDs must exactly equal
+-- the set of IDs captured in breakdown->deductions (no phantom stamps).
+select is(
+  (select array_agg(e.id order by e.id)
+   from nodo_inmo.property_expenses e
+   where e.applied_settlement_id = (
+     select id from nodo_inmo.owner_settlements
+     where payment_id = 'b0000000-0000-0000-0000-0000000000d1'
+   )),
+  (select array_agg((elem->>'id')::uuid order by (elem->>'id')::uuid)
+   from nodo_inmo.owner_settlements os,
+        jsonb_array_elements(os.breakdown->'deductions') elem
+   where os.payment_id = 'b0000000-0000-0000-0000-0000000000d1'),
+  'golden (CRITICAL-2): stamped expense set equals breakdown deductions set (no phantom stamps)');
 
 -- -----------------------------------------------------------------------
 -- D. No-double-count on second seal (headline correctness gate)

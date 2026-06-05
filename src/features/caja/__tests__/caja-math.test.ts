@@ -225,6 +225,35 @@ describe("computeSettlementBreakdown", () => {
     expect(result.net).toBe(result.gross - result.commission - deductionTotal);
   });
 
+  // SUGGESTION-1: SettlementBreakdown must include owner_share and deduction_total
+  // so PR-C can read the frozen snapshot without silent drops.
+  it("result includes owner_share (gross - commission) for PR-C display", () => {
+    const result = computeSettlementBreakdown(
+      [{ id: "p1", amount: 500000, currency: "ARS" }, { id: "p2", amount: 500000, currency: "ARS" }],
+      [{ payment_id: "p1", amount: 50000 }, { payment_id: "p2", amount: 50000 }],
+      [],
+      10,
+      "ARS",
+    );
+    expect(result).toHaveProperty("owner_share");
+    expect(result.owner_share).toBe(900000); // 1000000 - 100000
+  });
+
+  it("result includes deduction_total (sum of deduction amounts) for PR-C display", () => {
+    const result = computeSettlementBreakdown(
+      [{ id: "p1", amount: 500000, currency: "ARS" }],
+      [{ payment_id: "p1", amount: 50000 }],
+      [
+        { id: "e1", amount: 12000, currency: "ARS", expense_date: "2026-05-14", description: "Fix", type: "arreglo" },
+        { id: "e2", amount: 8000, currency: "ARS", expense_date: "2026-05-15", description: "Fix2", type: "arreglo" },
+      ],
+      10,
+      "ARS",
+    );
+    expect(result).toHaveProperty("deduction_total");
+    expect(result.deduction_total).toBe(20000);
+  });
+
   // Edge: zero gross → commission_rate = 0 (no divide-by-zero)
   it("zero gross: commission_rate = 0 (no divide-by-zero)", () => {
     const result = computeSettlementBreakdown([], [], [], 0, "ARS");

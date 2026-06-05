@@ -97,7 +97,11 @@ export interface SettlementBreakdown {
   gross: number;
   commission_rate: number;
   commission: number;
+  /** gross - commission; the owner's share before expense deductions */
+  owner_share: number;
   deductions: BreakdownDeduction[];
+  /** sum of all deduction amounts */
+  deduction_total: number;
   net: number;
 }
 
@@ -143,14 +147,17 @@ export function computeSettlementBreakdown(
       type: e.type,
     }));
 
+  const ownerShare = gross - commission;
   const deductionTotal = deductions.reduce((sum, d) => sum + d.amount, 0);
-  const net = parseFloat((gross - commission - deductionTotal).toFixed(2));
+  const net = parseFloat((ownerShare - deductionTotal).toFixed(2));
 
   return {
     gross,
     commission_rate: commissionRate,
     commission,
+    owner_share: ownerShare,
     deductions,
+    deduction_total: deductionTotal,
     net,
   };
 }

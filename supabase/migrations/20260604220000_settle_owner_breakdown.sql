@@ -206,10 +206,12 @@ begin
 
   -- 3. DEDUCTIONS: this owner's unconsumed chargeable expenses in this currency.
   --    Lock them so a concurrent settle can't grab the same rows.
+  --    WARNING-3 defense-in-depth: also filter p.org_id = v_org_id on the properties join
+  --    so that even if RLS on properties were disabled, cross-org rows would be excluded.
   with picked as (
     select e.id, e.amount, e.description, e.expense_date, e.type
     from nodo_inmo.property_expenses e
-    join nodo_inmo.properties p on p.id = e.property_id
+    join nodo_inmo.properties p on p.id = e.property_id and p.org_id = v_org_id
     where p.owner_id = p_owner_id
       and e.org_id = v_org_id
       and e.currency = p_currency
@@ -221,7 +223,7 @@ begin
     coalesce(sum(amount), 0),
     coalesce(
       jsonb_agg(jsonb_build_object(
-        'expense_id',   id,
+        'id',           id,
         'amount',       amount,
         'description',  description,
         'expense_date', expense_date,
@@ -260,17 +262,16 @@ begin
          settlement_group = v_group
    where id = any(p_settlement_ids);
 
-  -- 6b. Stamp consumed expenses with the anchor settlement id (ADR-4).
-  update nodo_inmo.property_expenses e
+  -- 6b. Stamp ONLY the expenses captured in the deductions set (step 3).
+  --     Using ID-based WHERE (not a predicate re-run) eliminates the phantom-stamp window
+  --     (CRITICAL-2): any expense inserted after step 3 is not in v_deductions and thus
+  --     will not be stamped here, keeping stamp set = breakdown deductions set exactly.
+  update nodo_inmo.property_expenses
      set applied_settlement_id = v_anchor_id
-   where e.org_id = v_org_id
-     and exists (
-       select 1 from nodo_inmo.properties p
-       where p.id = e.property_id and p.owner_id = p_owner_id
-     )
-     and e.currency = p_currency
-     and e.charged_to_owner = true
-     and e.applied_settlement_id is null;
+   where id = any(
+     select (elem->>'id')::uuid
+     from jsonb_array_elements(v_deductions) elem
+   );
 
   return v_breakdown;
 end;
