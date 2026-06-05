@@ -268,9 +268,46 @@ export type Database = {
           },
         ]
       }
+      org_profiles: {
+        Row: {
+          address: string | null
+          created_at: string
+          cuit: string | null
+          email: string | null
+          legal_name: string | null
+          logo_path: string | null
+          org_id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          cuit?: string | null
+          email?: string | null
+          legal_name?: string | null
+          logo_path?: string | null
+          org_id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          cuit?: string | null
+          email?: string | null
+          legal_name?: string | null
+          logo_path?: string | null
+          org_id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       owner_settlements: {
         Row: {
           amount: number
+          breakdown: Json | null
           created_at: string
           currency: string
           id: string
@@ -278,11 +315,13 @@ export type Database = {
           owner_id: string
           payment_id: string
           settled_date: string | null
+          settlement_group: string | null
           status: string
           updated_at: string
         }
         Insert: {
           amount: number
+          breakdown?: Json | null
           created_at?: string
           currency?: string
           id?: string
@@ -290,11 +329,13 @@ export type Database = {
           owner_id: string
           payment_id: string
           settled_date?: string | null
+          settlement_group?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           amount?: number
+          breakdown?: Json | null
           created_at?: string
           currency?: string
           id?: string
@@ -302,6 +343,7 @@ export type Database = {
           owner_id?: string
           payment_id?: string
           settled_date?: string | null
+          settlement_group?: string | null
           status?: string
           updated_at?: string
         }
@@ -384,6 +426,7 @@ export type Database = {
       properties: {
         Row: {
           address: string
+          commission_rate: number | null
           created_at: string
           currency: string
           description: string | null
@@ -402,6 +445,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          commission_rate?: number | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -420,6 +464,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          commission_rate?: number | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -449,6 +494,7 @@ export type Database = {
       property_expenses: {
         Row: {
           amount: number
+          applied_settlement_id: string | null
           charged_to_owner: boolean
           created_at: string
           currency: string
@@ -463,6 +509,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          applied_settlement_id?: string | null
           charged_to_owner: boolean
           created_at?: string
           currency?: string
@@ -477,6 +524,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          applied_settlement_id?: string | null
           charged_to_owner?: boolean
           created_at?: string
           currency?: string
@@ -490,6 +538,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "property_expenses_applied_settlement_id_fkey"
+            columns: ["applied_settlement_id"]
+            isOneToOne: false
+            referencedRelation: "owner_settlements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "property_expenses_property_id_fkey"
             columns: ["property_id"]
@@ -532,7 +587,14 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      settle_owner: {
+        Args: {
+          p_currency: string
+          p_owner_id: string
+          p_settlement_ids: string[]
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
