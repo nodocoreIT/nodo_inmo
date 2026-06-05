@@ -37,7 +37,7 @@ import { useUploadReceipt } from "@/features/property-expenses/hooks/use-upload-
 
 const schema = z.object({
   type: z.enum(["arreglo", "compra_accesorio"], {
-    required_error: "Tipo requerido",
+    message: "Tipo requerido",
   }),
   amount: z
     .string()
@@ -47,7 +47,7 @@ const schema = z.object({
   expense_date: z.string().min(1, "Fecha requerida"),
   description: z.string().min(1, "Descripción requerida"),
   charged_to_owner: z.boolean({
-    required_error: "Indicá si se le cobra al propietario",
+    message: "Indicá si se le cobra al propietario",
   }),
 });
 
