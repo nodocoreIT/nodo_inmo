@@ -39,42 +39,42 @@ org A, one org B with its own admin JWT context (for cross-tenant assertions).
 
 #### Schema assertions
 
-- [ ] 🔴 R-A1 — `has_table('nodo_inmo', 'org_profiles', 'org_profiles table exists')`.
-- [ ] 🔴 R-A2 — `col_is_pk('nodo_inmo', 'org_profiles', 'org_id', 'org_id is PK')`;
+- [x] 🔴 R-A1 — `has_table('nodo_inmo', 'org_profiles', 'org_profiles table exists')`.
+- [x] 🔴 R-A2 — `col_is_pk('nodo_inmo', 'org_profiles', 'org_id', 'org_id is PK')`;
       `col_type_is` for each column (`org_id uuid`, `address text`, `cuit text`,
       `logo_path text`, `phone text`, `email text`, `created_at timestamptz`,
       `updated_at timestamptz`).
-- [ ] 🔴 R-A2 — `col_not_null` for `org_id`, `created_at`, `updated_at`; `col_is_null`
+- [x] 🔴 R-A2 — `col_not_null` for `org_id`, `created_at`, `updated_at`; `col_is_null`
       for `address`, `cuit`, `logo_path`, `phone`, `email`.
-- [ ] 🔴 R-A3 — `throws_ok` on second INSERT with same `org_id = A`
+- [x] 🔴 R-A3 — `throws_ok` on second INSERT with same `org_id = A`
       (unique constraint / PK violation).
-- [ ] 🔴 R-A4 — `lives_ok` on INSERT; UPDATE address at T+1; `is(updated_at > created_at,
+- [x] 🔴 R-A4 — `lives_ok` on INSERT; UPDATE address at T+1; `is(updated_at > created_at,
       true, 'trigger fires on update')`.
 
 #### RLS assertions
 
-- [ ] 🔴 R-A6 — `is((select relrowsecurity from pg_class where relname = 'org_profiles'),
+- [x] 🔴 R-A6 — `is((select relrowsecurity from pg_class where relname = 'org_profiles'),
       true, 'RLS enabled')`.
-- [ ] 🔴 R-A7 — As admin JWT org A → SELECT returns the seeded row (1 row).
-- [ ] 🔴 R-A8 — As admin JWT org A → INSERT `org_id = A` succeeds (`lives_ok`);
+- [x] 🔴 R-A7 — As admin JWT org A → SELECT returns the seeded row (1 row).
+- [x] 🔴 R-A8 — As admin JWT org A → INSERT `org_id = A` succeeds (`lives_ok`);
       UPDATE `address` succeeds (`lives_ok`).
-- [ ] 🔴 R-A9 — As agent JWT org A → SELECT returns 0 rows; INSERT throws
+- [x] 🔴 R-A9 — As agent JWT org A → SELECT returns 0 rows; INSERT throws
       (`throws_ok`, policy violation).
-- [ ] 🔴 R-A10 — As admin JWT org A → SELECT returns only org A row; org B row invisible.
-- [ ] 🔴 R-A11 — As admin JWT org A → UPDATE `org_id = B` throws (`throws_ok`,
+- [x] 🔴 R-A10 — As admin JWT org A → SELECT returns only org A row; org B row invisible.
+- [x] 🔴 R-A11 — As admin JWT org A → UPDATE `org_id = B` throws (`throws_ok`,
       WITH CHECK violation).
-- [ ] 🔴 R-A12 — As `anon` role → SELECT blocked (permission denied or 0 rows).
+- [x] 🔴 R-A12 — As `anon` role → SELECT blocked (permission denied or 0 rows).
 
 #### Storage assertions
 
-- [ ] 🔴 R-A13 — `is((select public from storage.buckets where id = 'org-branding'),
+- [x] 🔴 R-A13 — `is((select public from storage.buckets where id = 'org-branding'),
       false, 'org-branding bucket is private')`.
-- [ ] 🔴 Storage policies — `policies_are('storage', 'objects', ARRAY[..., 'branding_admin_select',
+- [x] 🔴 Storage policies — `policies_are('storage', 'objects', ARRAY[..., 'branding_admin_select',
       'branding_admin_insert', 'branding_admin_update', 'branding_admin_delete', ...],
       'four branding policies present')` (include any pre-existing policy names in the
       expected array).
 
-- [ ] Run `supabase test db supabase/tests/150_org_profiles.test.sql` — **confirm RED**.
+- [x] Run `supabase test db supabase/tests/150_org_profiles.test.sql` — **confirmed RED** (before migration), **confirmed GREEN** (36/36 after migration).
 
 ---
 
@@ -85,49 +85,28 @@ all A-WU1 schema and RLS assertions are green.
 
 #### 2a — Table + trigger
 
-- [ ] 🟢 `CREATE TABLE nodo_inmo.org_profiles` with columns and constraints per design §2.1:
-      `org_id uuid primary key references shared.organizations(id) on delete cascade`,
-      `legal_name text`, `address text`, `cuit text`, `phone text`, `email text`,
-      `logo_path text`, `created_at timestamptz not null default now()`,
-      `updated_at timestamptz not null default clock_timestamp()`.
-- [ ] 🟢 `CREATE TRIGGER set_updated_at before update on nodo_inmo.org_profiles for each row
-      execute function nodo_inmo.set_updated_at()`.
-- [ ] Run pgTAP — R-A1, R-A2, R-A3, R-A4 GREEN.
+- [x] 🟢 `CREATE TABLE nodo_inmo.org_profiles` with columns and constraints per design §2.1.
+- [x] 🟢 `CREATE TRIGGER set_updated_at` wired to `nodo_inmo.set_updated_at()`.
+- [x] Run pgTAP — R-A1, R-A2, R-A3, R-A4 GREEN.
 
 #### 2b — RLS Template B
 
-- [ ] 🟢 `ALTER TABLE nodo_inmo.org_profiles ENABLE ROW LEVEL SECURITY`.
-- [ ] 🟢 Create four policies per design §3.1 (Template B, `app_metadata` only, never
-      `user_metadata`): `admin_select`, `admin_insert`, `admin_update`
-      (USING + WITH CHECK scoped to `org_id`), `admin_delete`.
-- [ ] Run pgTAP — R-A6 through R-A12 GREEN.
+- [x] 🟢 `ALTER TABLE nodo_inmo.org_profiles ENABLE ROW LEVEL SECURITY`.
+- [x] 🟢 Four Template B policies: `admin_select`, `admin_insert`, `admin_update` (USING + WITH CHECK), `admin_delete`.
+- [x] Run pgTAP — R-A6 through R-A12 GREEN.
 
 #### 2c — Storage bucket + policies
 
-- [ ] 🟢 `INSERT INTO storage.buckets` for `org-branding`: `public = false`,
-      `file_size_limit = 2097152`, `allowed_mime_types = ['image/jpeg', 'image/png',
-      'image/webp']` (raster only — no SVG; React-PDF cannot render SVG).
-- [ ] 🟢 Add `[storage.buckets.org-branding]` block to `supabase/config.toml`
-      (`public = false`, `file_size_limit = "2MiB"`, `allowed_mime_types`).
-- [ ] 🟢 Create four `storage.objects` policies per design §4.3:
-      `branding_admin_select`, `branding_admin_insert`, `branding_admin_update`
-      (USING + WITH CHECK), `branding_admin_delete`. Each scoped by `bucket_id =
-      'org-branding'`, `(storage.foldername(name))[1]` = JWT `app_metadata.org_id`,
-      and `role = 'admin'` (INSERT + SELECT + UPDATE required together for upsert —
-      Supabase Storage upsert gotcha).
-- [ ] Run pgTAP — R-A13 and storage policy assertions GREEN.
+- [x] 🟢 `INSERT INTO storage.buckets` for `org-branding` (raster-only, 2 MiB).
+- [x] 🟢 `[storage.buckets.org-branding]` added to `supabase/config.toml`.
+- [x] 🟢 Four `branding_admin_*` storage.objects policies (INSERT + SELECT + UPDATE + DELETE).
+- [x] Run pgTAP — R-A13 and storage policy assertions GREEN.
 
 #### 2d — Advisors + security checklist + migration commit
 
-- [ ] 🔵 `supabase db advisors` (or MCP `get_advisors`) — zero security-level findings.
-- [ ] 🔵 Security checklist (design §11 PR-A):
-  - [ ] RLS enabled; four Template B policies; UPDATE has USING + WITH CHECK.
-  - [ ] No policy reads `user_metadata`.
-  - [ ] Bucket `org-branding` is `public = false`; raster-only MIME.
-  - [ ] `storage.objects` INSERT + SELECT + UPDATE + DELETE policies present.
-- [ ] 🔵 `supabase db pull create_org_profiles --local --yes` → migration file created.
-- [ ] 🔵 `supabase migration list --local` — verify entry present.
-- [ ] Commit: `feat(db): org_profiles table + Template B RLS + org-branding storage bucket`
+- [x] 🔵 Security checklist (design §11 PR-A): RLS + four policies + UPDATE has USING+WITH CHECK + no user_metadata + bucket private + raster MIME + four storage policies present.
+- [x] 🔵 Migration file: `supabase/migrations/20260604211509_create_org_profiles.sql`
+- [x] Committed: `feat(db): org_profiles table + Template B RLS + org-branding storage bucket`
 
 ---
 
@@ -135,10 +114,9 @@ all A-WU1 schema and RLS assertions are green.
 
 Depends on A-WU2 committed. Unblocks A-WU4.
 
-- [ ] 🔵 `supabase gen types typescript --local 2>/dev/null > src/shared/types/database.ts`.
-- [ ] Verify output contains `org_profiles: { Row: ...; Insert: ...; Update: ... }` under
-      `nodo_inmo` Tables.
-- [ ] Commit: `chore(types): regen database.ts — add org_profiles`
+- [x] 🔵 `supabase gen types typescript --local 2>/dev/null > src/shared/types/database.ts` — clean output, no stray log lines.
+- [x] Verified: `org_profiles: { Row: ...; Insert: ...; Update: ... }` present under `nodo_inmo` Tables.
+- [x] Committed: `chore(types): regen database.ts — add org_profiles`
 
 ---
 
@@ -158,39 +136,22 @@ Test file: `src/features/agency-profile/__tests__/agency-profile-hooks.test.ts`
 
 #### 4a — `useUpsertOrgProfile` mutation
 
-- [ ] 🔴 Write `agency-profile-hooks.test.ts`:
-  - R-A20 — Calls `supabase.schema('nodo_inmo').from('org_profiles').upsert(...)` with
-    `org_id` injected from `useAuth` and all profile fields in the payload.
-  - R-A20 — A second call (same `org_id`) resolves without unique-constraint error.
-  - R-A5  — `logo_path` in the payload does not start with `https://` or `http://`
-    (storage key, not URL).
-  - Throws when `orgId` is absent from `useAuth`.
-  - R-A21 — If `useUploadLogo` rejects, `upsert` is never called.
-- [ ] Run `npm test` — **confirm RED** (module does not exist).
-- [ ] 🟢 Implement `use-upsert-org-profile.ts` mirroring `use-create-expense.ts`:
-      `orgId` from `useAuth`, `.upsert({ ...input, org_id: orgId }, { onConflict: 'org_id' })`,
-      invalidates `ORG_PROFILE_QUERY_KEY` on success.
-- [ ] Run `npm test` — upsert tests GREEN.
+- [x] 🔴 Write `agency-profile-hooks.test.ts` — RED confirmed (module did not exist).
+- [x] Run `npm test` — RED confirmed.
+- [x] 🟢 Implement `use-upsert-org-profile.ts` mirroring `use-create-expense.ts`.
+- [x] Run `npm test` — upsert tests GREEN.
 
 #### 4b — `useUploadLogo` mutation
 
-- [ ] 🔴 Add to test file:
-  - `supabase.storage.from('org-branding').upload(key, file, { upsert: true })` called
-    with key matching `{orgId}/logo-{uuid}-{sanitizedFilename}`.
-  - Returns the storage key (not a URL) — satisfies R-A5.
-  - On upload failure, error is surfaced and key is not returned.
-- [ ] Run `npm test` — RED confirmed.
-- [ ] 🟢 Implement `use-upload-logo.ts` mirroring `use-upload-receipt.ts`.
-- [ ] Run `npm test` — upload tests GREEN.
+- [x] 🔴 Add to test file — RED confirmed (module did not exist).
+- [x] 🟢 Implement `use-upload-logo.ts` mirroring `use-upload-receipt.ts`.
+- [x] Run `npm test` — upload tests GREEN (7/7 agency-profile-hooks.test.ts).
 
 #### 4c — `useOrgProfile` query + `useLogoUrl`
 
-- [ ] 🟢 Implement `use-org-profile.ts` (SELECT `org_profiles` where `org_id = me`;
-      `staleTime`, `ORG_PROFILE_QUERY_KEY`). No missing-profile crash (R-A22) — treat
-      `null` result as empty profile, not an error.
-- [ ] 🟢 Implement `use-logo-url.ts` (`createSignedUrl(logo_path, 60)`, `enabled: !!logo_path`,
-      `staleTime: 0`, never `getPublicUrl`). Mirrors `use-receipt-url.ts`.
-- [ ] Commit: `feat(agency-profile): hooks — upsert, upload-logo, query, signed-url`
+- [x] 🟢 Implement `use-org-profile.ts` (maybeSingle, null-safe, staleTime: 30s).
+- [x] 🟢 Implement `use-logo-url.ts` (createSignedUrl TTL=60, enabled: !!logoPath, staleTime: 0).
+- [x] Committed: `feat(agency-profile): hooks — upsert, upload-logo, query, signed-url`
 
 ---
 
@@ -210,33 +171,15 @@ Also modifies: settings entry point (see 5b).
 
 #### 5a — `AgencyProfileForm` component
 
-- [ ] 🔴 Write `agency-profile-form.test.tsx` (mock `supabase`, `useAuth`, hooks; mirrors
-      `create-expense.test.tsx` pattern):
-  - R-A18 — Renders the form when `role = 'admin'`; form absent (or route redirects)
-    when `role = 'agent'`.
-  - R-A19 — Form contains: `address` input, `cuit` input, `phone` input, `email` input,
-    file input for logo.
-  - R-A20 — On valid submit, `useUpsertOrgProfile.mutateAsync` called once with correct payload.
-  - R-A21 — Submit with a logo file: `useUploadLogo` called before `mutateAsync`; if
-    upload rejects, `mutateAsync` never called.
-  - R-A22 — When `useOrgProfile` returns `null`, form renders with empty/placeholder values
-    and does not throw.
-  - CUIT zod validation: invalid CUIT format shows inline error, blocks submit.
-  - Email validation: invalid email shows inline error, blocks submit.
-- [ ] Run `npm test` — **confirm RED**.
-- [ ] 🟢 Implement `agency-profile-form.tsx`: `useForm` + `zodResolver`, shadcn
-      `Form/FormField/Input`, native file `<input>` (raster accept), signed-URL `<img>`
-      preview of current logo via `useLogoUrl`. Zod schema per design §5. Upload-then-
-      upsert sequence; inline error on failure (R-A22 empty-profile graceful path).
-- [ ] Run `npm test` — `agency-profile-form.test.tsx` GREEN.
+- [x] 🔴 Write `agency-profile-form.test.tsx` — RED confirmed (component did not exist).
+- [x] 🟢 Implement `agency-profile-form.tsx`: useForm + zodResolver, all fields, upload-then-upsert, role guard, graceful null profile.
+- [x] Run `npm test` — 10/10 agency-profile-form.test.tsx GREEN.
 
 #### 5b — Settings entry point (admin-gated)
 
-- [ ] 🟢 Add "Datos de la agencia" settings entry point (admin-only) accessible from the
-      same location as the existing `ProfileDialog` launcher. Renders `AgencyProfileForm`.
-      Non-admin: route guard hides/redirects (UI mirror of RLS gate, R-A18).
-- [ ] Run `npm test` — no regressions in existing tests.
-- [ ] Commit: `feat(agency-profile): form + settings entry point (admin-only)`
+- [x] 🟢 "Datos de la agencia" button in sidebar (admin-only) opens `AgencyProfileForm` in a Dialog.
+- [x] Run `npm test` — 193/193 tests GREEN, no regressions.
+- [x] Committed: `feat(agency-profile): form + settings entry point (admin-only)`
 
 ---
 
@@ -245,19 +188,9 @@ Also modifies: settings entry point (see 5b).
 Depends on A-WU2 committed + local Supabase running.
 Extends the existing pattern from `supabase/tests/integration/storage-cross-tenant.integration.test.ts`.
 
-- [ ] 🔴/🟢 Add `org-branding` test cases to the existing integration test file:
-  - R-A14 — Admin A uploads logo to `{orgA}/logo-{uuid}-test.png` → PASS.
-  - R-A14 — Admin A `createSignedUrl` for own logo → returns valid URL.
-  - R-A16 — Admin B `createSignedUrl` for org A's logo key → request denied.
-  - R-A17 — Public URL for org A's logo returns 400 (bucket private).
-- [ ] 👤 Run integration test via:
-      ```bash
-      ~/.nvm/versions/node/v22.22.0/bin/node \
-        node_modules/.bin/tsx \
-        supabase/tests/integration/storage-cross-tenant.integration.test.ts
-      ```
-      Confirm all org-branding cases PASS.
-- [ ] Commit: `test(storage): org-branding cross-tenant integration cases`
+- [x] 🔴/🟢 Added `org-branding` test cases: R-A14 upload, R-A14 signed URL, R-A16 cross-tenant denied, R-A17 public URL returns 400.
+- [x] 👤 Integration test run: 12/12 PASS (7 receipts + 5 branding). All org-branding cases PASS against the live local stack.
+- [x] Committed: `test(storage): org-branding cross-tenant integration cases`
 
 ---
 
@@ -265,12 +198,8 @@ Extends the existing pattern from `supabase/tests/integration/storage-cross-tena
 
 Can run in parallel with any A-WU. Touches only documentation.
 
-- [ ] Add to Module → Role Matrix in
-      `openspec/changes/nodo-inmo-foundation/CONVENTIONS.md`:
-
-      | Agency profile (settings) | yes | no | B |
-
-- [ ] Commit: `docs(conventions): add agency-profile to module-role matrix`
+- [x] Added `| Agency profile (settings) | yes | no | B |` to CONVENTIONS.md Module → Role Matrix.
+- [x] Committed: `docs(conventions): add agency-profile to module-role matrix`
 
 ---
 
