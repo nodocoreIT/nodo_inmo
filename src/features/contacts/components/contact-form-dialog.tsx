@@ -300,6 +300,21 @@ export function ContactFormDialog({
                   name="commission_rate"
                   render={({ field }) => (
                     <FormItem>
+                      <FormLabel htmlFor="contact-commission-input">
+                        Comisión (%)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          id="contact-commission-input"
+                          aria-label="Comisión (%)"
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          placeholder="10"
+                          {...field}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
