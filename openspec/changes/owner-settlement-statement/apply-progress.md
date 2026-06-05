@@ -29,6 +29,14 @@
 - [x] B-WU5 — `useSettleOwner` rewired to settle_owner RPC (RED → GREEN, 7/7 vitest)
 - [x] B-WU6 — CONVENTIONS.md updated with owner-settlement-pdf row
 
+### PR-B Money-Correctness Fixes (verify-report-pr-b findings)
+
+- [x] FIX-CRITICAL-1 — JSONB deduction key `expense_id` → `id` in SQL RPC + pgTAP regression assertion (RED → GREEN)
+- [x] FIX-CRITICAL-2 — Step 6b stamp now uses ID-list from v_deductions; phantom-stamp window eliminated + pgTAP stamp-set assertion (RED → GREEN)
+- [x] FIX-WARNING-2 — pgTAP test for zero-commission fallback (property-NULL + contact-zero); 2 new assertions (RED → GREEN)
+- [x] FIX-WARNING-3 — `p.org_id = v_org_id` defense-in-depth on properties join in deduction CTE
+- [x] FIX-SUGGESTION-1 — `owner_share` + `deduction_total` added to `SettlementBreakdown` interface + `computeSettlementBreakdown` return (RED → GREEN, 2 new vitest tests)
+
 ---
 
 ## TDD Cycle Evidence
@@ -42,6 +50,10 @@
 | B-WU1 pgTAP | 160_settle_owner.test.sql written before migration; ran → 44/45 failing (columns DNE, RPC DNE, trigger wrong rate) | After migration → 33/33 PASS | Plan count corrected from 45 to 33 (DO blocks don't emit plan events); anchor uuid fix (min(uuid) unsupported → ORDER BY id::text LIMIT 1) |
 | B-WU4 caja-math | caja-math.test.ts computeSettlementBreakdown tests written; `npm test` → "is not a function" (13 RED) | computeSettlementBreakdown exported from caja-math.ts; 19/19 PASS | — |
 | B-WU5 use-settle-owner | use-settle-owner.test.tsx rewritten for RPC pattern; `npm test` → "Cannot read properties of undefined" on .update() (6 RED) | Hook rewritten to single rpc() call; 7/7 PASS | — |
+| FIX-CRITICAL-1 pgTAP | Added `breakdown->'deductions'->0->>'id'` assertion → 2 FAIL (NULL vs UUID, current SQL uses expense_id) | SQL key renamed to 'id'; 38/38 PASS | — |
+| FIX-CRITICAL-2 pgTAP | Added stamp-set equals breakdown-deductions assertion → FAIL (NULL vs {UUID}) | Step 6b rewritten to WHERE id = ANY(id-list from v_deductions); 38/38 PASS | — |
+| FIX-WARNING-2 pgTAP | Added posted-commission=0 + owner_settlement.amount=gross assertions → both PASS immediately (current behavior already correct) | No code change needed; tests document the behavior | Added comment to trigger coalesce line |
+| FIX-SUGGESTION-1 vitest | Added owner_share + deduction_total property assertions → 2 FAIL (fields absent) | Added fields to SettlementBreakdown interface + computeSettlementBreakdown return; 21/21 PASS | — |
 
 ---
 
@@ -79,6 +91,15 @@
 | `src/features/caja/hooks/use-settle-owner.ts` | Rewritten | Single supabase.schema('nodo_inmo').rpc('settle_owner', ...) call (atomic) |
 | `src/features/caja/__tests__/use-settle-owner.test.tsx` | Rewritten | 7 vitest tests (R-B10/12/13/14/16/18 + empty guard) |
 
+### PR-B Money-Correctness Fixes
+
+| File | Action | Notes |
+|------|--------|-------|
+| `supabase/migrations/20260604220000_settle_owner_breakdown.sql` | Modified | Step 3: renamed JSONB key `expense_id` → `id`; added `p.org_id = v_org_id` to properties join (WARNING-3). Step 6b: replaced predicate-based UPDATE with ID-list-based UPDATE from v_deductions (CRITICAL-2). |
+| `supabase/tests/160_settle_owner.test.sql` | Modified | Plan 33→38; added 5 assertions: CRITICAL-1 key regression (×2), CRITICAL-2 stamp-set equality, WARNING-2 zero-commission fallback (×2); new seed contact/property/contract/payment for WARNING-2. |
+| `src/features/caja/lib/caja-math.ts` | Modified | Added `owner_share` + `deduction_total` to `SettlementBreakdown` interface and `computeSettlementBreakdown` return (SUGGESTION-1). |
+| `src/features/caja/__tests__/caja-math.test.ts` | Modified | Added 2 vitest tests for `owner_share` and `deduction_total` (SUGGESTION-1). |
+
 ---
 
 ## Test Results
@@ -88,9 +109,9 @@
 #### 150_org_profiles.test.sql (PR-A)
 - **36/36 PASS** — schema shape, RLS Template B, storage bucket + 4 policies
 
-#### 160_settle_owner.test.sql (PR-B)
-- **33/33 PASS** — schema shape, commission property-first rule, golden breakdown, no-double-count (HEADLINE), seal-once, rollback atomicity, auth
-- Full pgTAP suite: **352/352 PASS** across 16 test files (no regressions)
+#### 160_settle_owner.test.sql (PR-B — after money-correctness fixes)
+- **38/38 PASS** — all original 33 + 5 new: CRITICAL-1 key regression (×2), CRITICAL-2 stamp-set, WARNING-2 zero-commission (×2)
+- Full pgTAP suite: **357/357 PASS** across 16 test files (no regressions; was 352 before fixes)
 
 ### vitest
 
@@ -99,17 +120,17 @@
 - `agency-profile-form.test.tsx`: **10/10 PASS**
 
 #### PR-B tests
-- `caja-math.test.ts`: **19/19 PASS** (13 new tests for computeSettlementBreakdown)
+- `caja-math.test.ts`: **21/21 PASS** (13 original + 2 new for owner_share/deduction_total — SUGGESTION-1)
 - `use-settle-owner.test.tsx`: **7/7 PASS** (7 tests, RPC pattern)
 
 #### Full suite
-- **191/195 PASS** — 4 pre-existing failures in `contacts` (existed before PR-B work, not introduced by these changes)
+- **197/197 PASS** (was 195; +2 new SUGGESTION-1 vitest tests)
 
 ### Integration (storage-cross-tenant)
 - `storage-cross-tenant.integration.test.ts`: **12/12 PASS** (real local stack)
 
 ### Lint
-- **16 problems (13 errors, 3 warnings)** — all pre-existing; no new lint errors added by PR-B
+- **15 problems** — unchanged from main baseline; no new errors added
 
 ### Typecheck
 - **Clean** — `tsc --noEmit` exits 0
@@ -159,4 +180,12 @@ vitest golden case uses the exact same numeric inputs as the pgTAP golden case. 
 
 ## Remaining Tasks
 
-PR-C (PDF comprobante): C-WU1 through C-WU5 — all pending, blocked on PR-A + PR-B merged
+PR-C (PDF comprobante): C-WU1 through C-WU5 — all pending, blocked on PR-A + PR-B merged.
+
+Money-correctness verify items fully resolved:
+- CRITICAL-1: DONE (key drift fixed, regression test added)
+- CRITICAL-2: DONE (phantom-stamp window eliminated, stamp-set assertion added)
+- WARNING-2: DONE (pgTAP test documenting zero-commission fallback added)
+- WARNING-3: DONE (org_id defense-in-depth on properties join added)
+- SUGGESTION-1: DONE (owner_share + deduction_total in TS interface + function)
+- WARNING-1 (rollback-evidence gap): optional, not addressed — guaranteed by Postgres transaction semantics
