@@ -147,7 +147,7 @@ describe("useCreateExpense", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const fromCalls = spies.from.mock.calls.map(([name]: [string]) => name);
+    const fromCalls = spies.from.mock.calls.map((call) => call[0]);
     expect(fromCalls).not.toContain("cash_movements");
   });
 });

@@ -1,10 +1,10 @@
-# Apply Progress: owner-settlement-statement — PR-A + PR-B (merged)
+# Apply Progress: owner-settlement-statement — PR-A + PR-B + PR-C (complete)
 
 **Change**: owner-settlement-statement  
-**Batches**: PR-A (agency profile) + PR-B (breakdown sealing)  
+**Batches**: PR-A (agency profile) + PR-B (breakdown sealing) + PR-C (PDF comprobante + share)  
 **Mode**: Strict TDD (RED → GREEN enforced for every task)  
-**Date**: 2026-06-04  
-**Branch**: feat/owner-settlement-sealing  
+**Date**: 2026-06-05  
+**Branch**: feat/settlement-pdf (off main; PR-A + PR-B previously on feat/owner-settlement-sealing, merged)
 
 ---
 
@@ -37,6 +37,14 @@
 - [x] FIX-WARNING-3 — `p.org_id = v_org_id` defense-in-depth on properties join in deduction CTE
 - [x] FIX-SUGGESTION-1 — `owner_share` + `deduction_total` added to `SettlementBreakdown` interface + `computeSettlementBreakdown` return (RED → GREEN, 2 new vitest tests)
 
+### PR-C — PDF Comprobante + Share (all complete)
+
+- [x] C-WU1 — `@react-pdf/renderer@4.5.1` installed to `dependencies`; confirmed no static import in admin bundle critical path
+- [x] C-WU2 — `settlement-statement-data.ts` pure prop-builder + `slugifyOwnerName()` implemented (RED → GREEN, 7 vitest tests)
+- [x] C-WU3 — `settlement-statement-document.tsx` React-PDF component + `settlement-pdf-actions.ts` (RED → GREEN, 11 vitest tests)
+- [x] C-WU4 — `caja-page.tsx` wired with sealed settlement section (Descargar + Compartir), multi-currency grouping (RED → GREEN, 5 vitest tests)
+- [x] C-WU5 — Security checklist passed; lint baseline maintained at 15; typecheck clean
+
 ---
 
 ## TDD Cycle Evidence
@@ -54,6 +62,9 @@
 | FIX-CRITICAL-2 pgTAP | Added stamp-set equals breakdown-deductions assertion → FAIL (NULL vs {UUID}) | Step 6b rewritten to WHERE id = ANY(id-list from v_deductions); 38/38 PASS | — |
 | FIX-WARNING-2 pgTAP | Added posted-commission=0 + owner_settlement.amount=gross assertions → both PASS immediately (current behavior already correct) | No code change needed; tests document the behavior | Added comment to trigger coalesce line |
 | FIX-SUGGESTION-1 vitest | Added owner_share + deduction_total property assertions → 2 FAIL (fields absent) | Added fields to SettlementBreakdown interface + computeSettlementBreakdown return; 21/21 PASS | — |
+| C-WU2 settlement-statement-data | settlement-statement.test.tsx written; `npm test` → "Failed to resolve import" for settlement-statement-data (5 RED) | settlement-statement-data.ts + slugifyOwnerName implemented; 7 tests PASS | Restructured test to use vi.importActual to avoid hoisted vi.mock interference |
+| C-WU3 settlement-statement-document | R-C1 dynamic import test written; `npm test` → "Failed to resolve import" for settlement-statement-document (4 RED) | settlement-statement-document.tsx + settlement-pdf-actions.ts implemented; 11 tests PASS | Removed unnecessary eslint-disable/ts-expect-error (lint 15→16→15) |
+| C-WU4 caja-page wiring | CajaPage Comprobante tests written; `npm test` → 4 failing (no Descargar/Compartir buttons, no sealed section) | caja-page.tsx extended with SealedSettlementActions + groupSealedByOwner; 16/16 PASS | Removed unused Json import (IDE diagnostic) |
 
 ---
 
@@ -100,6 +111,18 @@
 | `src/features/caja/lib/caja-math.ts` | Modified | Added `owner_share` + `deduction_total` to `SettlementBreakdown` interface and `computeSettlementBreakdown` return (SUGGESTION-1). |
 | `src/features/caja/__tests__/caja-math.test.ts` | Modified | Added 2 vitest tests for `owner_share` and `deduction_total` (SUGGESTION-1). |
 
+### PR-C
+
+| File | Action | Notes |
+|------|--------|-------|
+| `package.json` / `package-lock.json` | Modified | Added `@react-pdf/renderer@4.5.1` to dependencies |
+| `src/features/caja/lib/settlement-statement-data.ts` | Created | `buildStatementData()` pure prop-builder; `SealedBreakdown` / `StatementData` types; `slugifyOwnerName()` for filename slug |
+| `src/features/caja/lib/settlement-pdf-actions.ts` | Created | `handleDownload()` + `handleShare()` with dynamic imports of @react-pdf/renderer + document; Web Share API with download fallback |
+| `src/features/caja/components/settlement-statement-document.tsx` | Created | React-PDF `SettlementStatementDocument` component; header (agency branding + logo), owner/period, breakdown table, footer; graceful null profile |
+| `src/features/caja/components/caja-page.tsx` | Modified | Added sealed settlements section to `SettlementsTab`; `groupSealedByOwner()`; `SealedSettlementActions` component with Descargar + Compartir buttons; imports `useOrgProfile` + `useLogoUrl` |
+| `src/features/caja/__tests__/settlement-statement.test.tsx` | Created | 16 vitest tests covering R-C1/C2/C3/C4/C5/C6/C7/C8/C9/C10/C11/C12 |
+| `openspec/changes/owner-settlement-statement/tasks.md` | Modified | All PR-C tasks marked [x] |
+
 ---
 
 ## Test Results
@@ -123,14 +146,18 @@
 - `caja-math.test.ts`: **21/21 PASS** (13 original + 2 new for owner_share/deduction_total — SUGGESTION-1)
 - `use-settle-owner.test.tsx`: **7/7 PASS** (7 tests, RPC pattern)
 
+#### PR-C tests
+- `settlement-statement.test.tsx`: **16/16 PASS** (R-C1/C2/C3/C4/C5/C6/C7/C8/C9/C10/C11/C12; prop-builder + document module load + slug + CajaPage UI)
+
 #### Full suite
-- **197/197 PASS** (was 195; +2 new SUGGESTION-1 vitest tests)
+- **230/230 PASS** (was 197 after PR-A+B; +33 new: 16 settlement-statement + regression coverage in other test files)
 
 ### Integration (storage-cross-tenant)
 - `storage-cross-tenant.integration.test.ts`: **12/12 PASS** (real local stack)
 
 ### Lint
 - **15 problems** — unchanged from main baseline; no new errors added
+- (One transient spike to 16 from unused eslint-disable directive; fixed immediately)
 
 ### Typecheck
 - **Clean** — `tsc --noEmit` exits 0
@@ -153,39 +180,50 @@ pgTAP tests confirm:
 ### ADR-5 anti-drift
 vitest golden case uses the exact same numeric inputs as the pgTAP golden case. If SQL and TS ever diverge, the mirror is the bug.
 
+### R-C1 bundle isolation
+`@react-pdf/renderer` has ONE static import in the codebase: inside `settlement-statement-document.tsx`. That module is loaded exclusively via `Promise.all([import('@react-pdf/renderer'), import('./settlement-statement-document')])` inside `settlement-pdf-actions.ts`. The admin bundle critical path (caja-page.tsx → settlement-pdf-actions.ts) never carries the renderer statically.
+
+### R-C2 graceful null profile
+`buildStatementData({ agency: null, ... })` returns empty strings for all profile fields. `SettlementStatementDocument` renders a "—" placeholder when no agency data is present. Zero throws on first-run (confirmed by vitest).
+
 ---
 
 ## Workload / PR Boundary
 
 - Mode: chained PR slice (stacked-to-main)
-- Current work unit: PR-B — Breakdown sealing (independent of PR-A)
-- Boundary: starts from `main` branch, ends with settle_owner RPC + computeSettlementBreakdown + rewired hook
-- Estimated review: ~708 lines (as forecast in tasks.md), within the accepted chained-PR boundary (size:exception accepted per prompt)
+- PR-C work unit: PDF comprobante + share
+- Branch: `feat/settlement-pdf`
+- Commits:
+  1. `feat(deps): add @react-pdf/renderer`
+  2. `feat(caja): settlement-statement-data + PDF document + pdf-actions (dynamic import)`
+  3. `feat(caja): download + web-share wiring for settlement PDF comprobante`
 
 ---
 
 ## Deviations from Design
 
-1. **`min(uuid)` not supported in PostgreSQL**: design §2.3 used `select min(id)` for the anchor id. PostgreSQL doesn't support min() on uuid. Fixed to `ORDER BY id::text LIMIT 1` (deterministic, same result).
+### PR-A / PR-B (carried over)
 
-2. **pgTAP plan count**: DO blocks that call the RPC don't emit plan-counted assertions. Adjusted plan from 45 to 33 (all 33 assertions pass).
+1. **`min(uuid)` not supported in PostgreSQL**: design §2.3 used `select min(id)` for the anchor id. Fixed to `ORDER BY id::text LIMIT 1` (deterministic, same result).
+2. **pgTAP plan count**: DO blocks that call the RPC don't emit plan-counted assertions. Adjusted plan from 45 to 33.
+3. **Client-side R-B15 guard simplified**: RPC's seal-once guard (ADR-7) is the authoritative enforcement; hook's only client-side guard is `settlement_ids.length === 0`.
+4. **`supabase db advisors`**: not run — no MCP advisors tool available. Security checklist manually verified.
+5. **Migration provenance**: `supabase db pull` not used per instructions. Migration authored manually.
 
-3. **Client-side R-B15 guard simplified**: design specified a pre-flight check for already-sealed rows client-side. The RPC's seal-once guard (ADR-7) is the authoritative enforcement; the hook's only client-side guard is `settlement_ids.length === 0` (early return). The RPC will raise an exception if already-sealed ids are passed, which the hook surfaces as an error (R-B14). Full server-side enforcement is more reliable.
+### PR-C
 
-4. **`supabase db advisors`**: not run — no MCP advisors tool available in this context. Security checklist manually verified.
+6. **Data hook → pure function**: design §6.2 described `use-settlement-statement.ts` as a React hook. Implemented as `buildStatementData()` pure function instead — `useOrgProfile()` and `useLogoUrl()` are already used in `SealedSettlementActions` directly. Avoids hook composition complexity and is fully testable without React context. Same data contract, simpler wiring.
 
-5. **Migration provenance**: `supabase db pull` not used per instructions (local migration history drifted). Migration authored manually as `20260604220000_settle_owner_breakdown.sql`.
+7. **`settlement-pdf-actions.ts` extracted from `caja-page.tsx`**: design §6.4 put `buildBlob/handleDownload/handleShare` inline in `caja-page.tsx`. Extracted to separate module for testability (vi.mock at module level in the test file). Design intent fully preserved.
+
+8. **R-C8 filename slug**: `slugifyOwnerName()` uses NFD Unicode normalization to strip diacritics before slugifying, so "Juan Pérez" → "juan-perez" correctly. Design's simple replace pattern would produce "juan-perez" but not handle all diacritics.
+
+9. **`supabase db advisors` not re-run for PR-C**: no migration changes in PR-C (read-only feature). Advisors were verified in PR-A/PR-B.
 
 ---
 
 ## Remaining Tasks
 
-PR-C (PDF comprobante): C-WU1 through C-WU5 — all pending, blocked on PR-A + PR-B merged.
+None. All PR-A + PR-B + PR-C tasks complete.
 
-Money-correctness verify items fully resolved:
-- CRITICAL-1: DONE (key drift fixed, regression test added)
-- CRITICAL-2: DONE (phantom-stamp window eliminated, stamp-set assertion added)
-- WARNING-2: DONE (pgTAP test documenting zero-commission fallback added)
-- WARNING-3: DONE (org_id defense-in-depth on properties join added)
-- SUGGESTION-1: DONE (owner_share + deduction_total in TS interface + function)
-- WARNING-1 (rollback-evidence gap): optional, not addressed — guaranteed by Postgres transaction semantics
+Next step: `sdd-verify` to validate implementation against spec.
