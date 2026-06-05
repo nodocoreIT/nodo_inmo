@@ -42,6 +42,7 @@ const DB_URL =
   "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
 const BUCKET = "property-expense-receipts";
+const BRANDING_BUCKET = "org-branding";
 
 // ---------------------------------------------------------------------------
 // Minimal TAP-compatible test harness
@@ -143,6 +144,7 @@ async function main() {
   let userAId = "";
   let userBId = "";
   let objectKey = "";
+  let brandingObjectKey = "";
   let clientA: SupabaseClient | null = null;
   let clientB: SupabaseClient | null = null;
 
@@ -280,6 +282,78 @@ async function main() {
       publicRes.status === 400 || publicRes.status === 404,
       `R19: Public URL returns ${publicRes.status} — bucket is private, not publicly accessible`
     );
+
+    // ==================================================================
+    // org-branding bucket — R-A14 / R-A16 / R-A17
+    // Same cross-tenant denial pattern as receipts, different bucket.
+    // ==================================================================
+    console.log("\n# org-branding bucket cross-tenant tests");
+
+    // R-A14 — Admin A uploads logo to their org's path
+    const logoFileName = `logo-${run}.jpg`;
+    brandingObjectKey = `${orgAId}/logo-${run}-${logoFileName}`;
+    const logoContent = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]); // minimal JPEG
+
+    const { error: logoUploadErr } = await clientA.storage
+      .from(BRANDING_BUCKET)
+      .upload(brandingObjectKey, logoContent, {
+        contentType: "image/jpeg",
+        upsert: false,
+      });
+
+    ok(
+      logoUploadErr === null,
+      "R-A14: Admin A can upload a logo to their org path in org-branding"
+    );
+
+    if (logoUploadErr) {
+      console.log(`# WARN: branding upload failed: ${logoUploadErr.message}. Skipping remaining branding tests.`);
+    } else {
+      // R-A14 (verify) — Admin A can create a signed URL for their own logo
+      const { data: ownLogoUrl, error: ownLogoErr } =
+        await clientA.storage.from(BRANDING_BUCKET).createSignedUrl(brandingObjectKey, 60);
+
+      ok(
+        ownLogoErr === null && ownLogoUrl !== null,
+        "R-A14: Admin A can create a signed URL for their own logo"
+      );
+
+      // R-A16 — Admin B CANNOT create a signed URL for org A's logo
+      const { data: crossLogoUrl, error: crossLogoErr } =
+        await clientB.storage.from(BRANDING_BUCKET).createSignedUrl(brandingObjectKey, 60);
+
+      const brandingCrossDenied =
+        crossLogoErr !== null ||
+        crossLogoUrl === null ||
+        crossLogoUrl.signedUrl === null;
+
+      ok(
+        brandingCrossDenied,
+        "R-A16: Admin B CANNOT create a signed URL for org A logo (cross-tenant denied)"
+      );
+
+      if (crossLogoUrl?.signedUrl) {
+        const crossProbe = await fetch(crossLogoUrl.signedUrl);
+        ok(
+          crossProbe.status >= 400,
+          `R-A16 (extra): Cross-org branding signed URL is non-functional (HTTP ${crossProbe.status})`
+        );
+      } else {
+        ok(
+          true,
+          "R-A16 (extra): No signed URL returned for cross-org logo (denial at API level)"
+        );
+      }
+
+      // R-A17 — Public URL returns 400/404 (bucket is private, never public)
+      const logoPubUrl = `${SUPABASE_URL}/storage/v1/object/public/${BRANDING_BUCKET}/${brandingObjectKey}`;
+      const logoPubRes = await fetch(logoPubUrl);
+
+      ok(
+        logoPubRes.status === 400 || logoPubRes.status === 404,
+        `R-A17: org-branding public URL returns ${logoPubRes.status} — bucket is private`
+      );
+    }
   } finally {
     // ------------------------------------------------------------------
     // Teardown — best-effort, order: object → users → members → orgs
@@ -287,6 +361,13 @@ async function main() {
 
     if (clientA && objectKey) {
       await clientA.storage.from(BUCKET).remove([objectKey]).then(
+        () => {},
+        () => {}
+      );
+    }
+
+    if (clientA && brandingObjectKey) {
+      await clientA.storage.from(BRANDING_BUCKET).remove([brandingObjectKey]).then(
         () => {},
         () => {}
       );
