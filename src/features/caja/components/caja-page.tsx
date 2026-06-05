@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, Download, Share2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
   Table,
@@ -12,16 +12,27 @@ import {
 import { useCashMovements } from "@/features/caja/hooks/use-cash-movements";
 import { useOwnerSettlements } from "@/features/caja/hooks/use-owner-settlements";
 import { useSettleOwner } from "@/features/caja/hooks/use-settle-owner";
+import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
+import { useLogoUrl } from "@/features/agency-profile/hooks/use-logo-url";
 import { MovementFormDialog } from "./movement-form-dialog";
 import {
   computeTotals,
   groupPendingByOwner,
 } from "@/features/caja/lib/caja-math";
 import {
+  buildStatementData,
+  type SealedBreakdown,
+} from "@/features/caja/lib/settlement-statement-data";
+import {
+  handleDownload,
+  handleShare,
+} from "@/features/caja/lib/settlement-pdf-actions";
+import {
   formatMoney,
   formatDate,
 } from "@/features/contracts/lib/contract-labels";
 import { cn } from "@/shared/lib/utils";
+import type { SettlementWithOwner } from "@/features/caja/hooks/use-owner-settlements";
 
 type Tab = "movimientos" | "liquidaciones";
 
@@ -229,11 +240,94 @@ function MovementsTab() {
 
 // ── Liquidaciones ─────────────────────────────────────────────────────────────
 
+/** Group settled settlements by owner_id:currency for the comprobante section. */
+interface SealedGroup {
+  owner_id: string;
+  owner_name: string;
+  currency: string;
+  breakdown: SealedBreakdown;
+  settled_date: string;
+}
+
+function groupSealedByOwner(settlements: SettlementWithOwner[]): SealedGroup[] {
+  const map = new Map<string, SealedGroup>();
+
+  for (const s of settlements) {
+    if (s.status !== "settled") continue;
+    if (!s.breakdown) continue;
+
+    const key = `${s.owner_id}:${s.currency}`;
+    if (map.has(key)) continue; // use first row (all rows in a batch carry the same breakdown)
+
+    const breakdown = s.breakdown as unknown as SealedBreakdown;
+    map.set(key, {
+      owner_id: s.owner_id,
+      owner_name: s.owner?.name ?? "—",
+      currency: s.currency,
+      breakdown,
+      settled_date: s.settled_date ?? "",
+    });
+  }
+
+  return Array.from(map.values());
+}
+
+/** Inner component that has access to profile + logo and renders the comprobante actions. */
+function SealedSettlementActions({ group }: { group: SealedGroup }) {
+  const { data: agency } = useOrgProfile();
+  const { data: logoUrl } = useLogoUrl(agency?.logo_path);
+
+  const canShare =
+    typeof navigator !== "undefined" &&
+    typeof navigator.canShare === "function" &&
+    navigator.canShare({ files: [new File([], "test.pdf", { type: "application/pdf" })] });
+
+  function buildData() {
+    return buildStatementData({
+      breakdown: group.breakdown,
+      agency: agency ?? null,
+      logoUrl: logoUrl ?? null,
+      ownerName: group.owner_name,
+      settledDate: group.settled_date,
+    });
+  }
+
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5"
+        onClick={() => void handleDownload(buildData())}
+      >
+        <Download className="h-3.5 w-3.5" />
+        Descargar
+      </Button>
+      {canShare && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => void handleShare(buildData())}
+        >
+          <Share2 className="h-3.5 w-3.5" />
+          Compartir
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function SettlementsTab() {
   const { data, isLoading, isError } = useOwnerSettlements();
   const settleOwner = useSettleOwner();
 
-  const groups = groupPendingByOwner(data ?? []);
+  const allSettlements = data ?? [];
+  const pendingGroups = groupPendingByOwner(allSettlements);
+  const sealedGroups = groupSealedByOwner(allSettlements);
+
+  const hasPending = pendingGroups.length > 0;
+  const hasSealed = sealedGroups.length > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -257,7 +351,7 @@ function SettlementsTab() {
         </div>
       )}
 
-      {!isLoading && !isError && groups.length === 0 && (
+      {!isLoading && !isError && !hasPending && !hasSealed && (
         <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-mist py-16 text-center">
           <p className="text-sm font-medium text-slate2">
             No hay liquidaciones pendientes
@@ -269,7 +363,8 @@ function SettlementsTab() {
         </div>
       )}
 
-      {!isLoading && !isError && groups.length > 0 && (
+      {/* ── Pending settlements — Liquidar action ──────────────────────────── */}
+      {!isLoading && !isError && hasPending && (
         <div className="rounded-md border border-border bg-card shadow-sm">
           <Table>
             <TableHeader>
@@ -281,7 +376,7 @@ function SettlementsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {groups.map((g) => (
+              {pendingGroups.map((g) => (
                 <TableRow key={`${g.owner_id}:${g.currency}`}>
                   <TableCell className="font-medium">{g.owner_name}</TableCell>
                   <TableCell>{g.settlement_ids.length}</TableCell>
@@ -305,6 +400,45 @@ function SettlementsTab() {
                     >
                       Liquidar
                     </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
+      {/* ── Sealed settlements — Comprobante actions ───────────────────────── */}
+      {!isLoading && !isError && hasSealed && (
+        <div className="rounded-md border border-border bg-card shadow-sm">
+          <div className="border-b border-border px-4 py-3">
+            <p className="text-sm font-semibold text-slate2">
+              Liquidaciones realizadas
+            </p>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Propietario</TableHead>
+                <TableHead>Moneda</TableHead>
+                <TableHead className="text-right">Neto liquidado</TableHead>
+                <TableHead className="text-right">Fecha</TableHead>
+                <TableHead className="text-right">Comprobante</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sealedGroups.map((g) => (
+                <TableRow key={`${g.owner_id}:${g.currency}`}>
+                  <TableCell className="font-medium">{g.owner_name}</TableCell>
+                  <TableCell>{g.currency}</TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatMoney(g.breakdown.net, g.currency)}
+                  </TableCell>
+                  <TableCell className="text-right text-slate2">
+                    {formatDate(g.settled_date)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <SealedSettlementActions group={g} />
                   </TableCell>
                 </TableRow>
               ))}
