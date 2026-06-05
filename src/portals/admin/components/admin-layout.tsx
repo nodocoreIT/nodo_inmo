@@ -53,7 +53,10 @@ const ROUTE_TITLES: Record<string, string> = {
   "/admin/caja": "Caja",
 };
 
+import { FeedbackFAB } from "@/features/feedback/components/feedback-node";
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 function initials(value: string): string {
   const base = value.trim();
@@ -180,6 +183,9 @@ export function AdminLayout() {
         currentName={fullName}
         email={email}
       />
+
+      {/* Floating feedback node */}
+      <FeedbackFAB />
     </div>
   );
 }
