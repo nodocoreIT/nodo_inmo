@@ -1,5 +1,6 @@
 /**
- * Pure Caja math: balance from movements, and pending settlements grouped by owner.
+ * Pure Caja math: balance from movements, pending settlements grouped by owner,
+ * and the settlement breakdown computation (TS mirror of the settle_owner SQL RPC).
  */
 
 export interface MovementLike {
@@ -73,4 +74,90 @@ export function groupPendingByOwner(settlements: SettlementLike[]): OwnerGroup[]
   }
 
   return Array.from(map.values());
+}
+
+// ─── Settlement breakdown (TS mirror of the settle_owner SQL RPC — ADR-5) ────
+//
+// This is a DISPLAY-ONLY pure function. It is used for the pre-seal projection
+// in the UI and as a regression-guarded mirror of the SQL canonical computation.
+// It NEVER feeds the sealed snapshot — the RPC is the single source of truth.
+//
+// IMPORTANT: Keep the arithmetic in sync with the settle_owner plpgsql function.
+// If SQL and TS diverge, this mirror is the bug (ADR-5, HEADLINE-2).
+
+export interface BreakdownDeduction {
+  id: string;
+  amount: number;
+  description: string;
+  expense_date: string;
+  type: string;
+}
+
+export interface SettlementBreakdown {
+  gross: number;
+  commission_rate: number;
+  commission: number;
+  /** gross - commission; the owner's share before expense deductions */
+  owner_share: number;
+  deductions: BreakdownDeduction[];
+  /** sum of all deduction amounts */
+  deduction_total: number;
+  net: number;
+}
+
+/**
+ * Pure projection used for pre-seal display in the UI and as the vitest mirror
+ * of the SQL seal arithmetic (ADR-5). No side-effects, no network calls.
+ *
+ * @param payments        All payments in the settlement batch (any currency).
+ * @param commissionMovements  Commission cash_movements posted by the trigger.
+ * @param expenses        All chargeable expenses for the owner (any currency).
+ * @param commissionRate  Effective rate for display (stored verbatim, not used to compute commission).
+ * @param currency        Settlement currency — filters payments, commissions, deductions.
+ */
+export function computeSettlementBreakdown(
+  payments: { id: string; amount: number; currency: string }[],
+  commissionMovements: { payment_id: string; amount: number }[],
+  expenses: { id: string; amount: number; currency: string; expense_date: string; description: string; type: string }[],
+  commissionRate: number,
+  currency: string,
+): SettlementBreakdown {
+  // Build a Set of payment ids in this batch for O(1) membership checks
+  const paymentIds = new Set(payments.map((p) => p.id));
+
+  // gross = sum of payment amounts for this currency
+  const gross = payments
+    .filter((p) => p.currency === currency)
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  // commission = sum of commission movements whose payment is in this batch
+  // (as-of-cobro frozen value — NOT rate * gross)
+  const commission = commissionMovements
+    .filter((cm) => paymentIds.has(cm.payment_id))
+    .reduce((sum, cm) => sum + cm.amount, 0);
+
+  // deductions = chargeable expenses matching this currency
+  const deductions: BreakdownDeduction[] = expenses
+    .filter((e) => e.currency === currency)
+    .map((e) => ({
+      id: e.id,
+      amount: e.amount,
+      description: e.description,
+      expense_date: e.expense_date,
+      type: e.type,
+    }));
+
+  const ownerShare = gross - commission;
+  const deductionTotal = deductions.reduce((sum, d) => sum + d.amount, 0);
+  const net = parseFloat((ownerShare - deductionTotal).toFixed(2));
+
+  return {
+    gross,
+    commission_rate: commissionRate,
+    commission,
+    owner_share: ownerShare,
+    deductions,
+    deduction_total: deductionTotal,
+    net,
+  };
 }

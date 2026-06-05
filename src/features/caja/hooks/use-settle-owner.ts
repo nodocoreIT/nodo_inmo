@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/shared/lib/supabase";
+import type { Json } from "@/shared/types/database";
 import { OWNER_SETTLEMENTS_QUERY_KEY } from "./use-owner-settlements";
 
 export interface SettleOwnerInput {
@@ -11,29 +12,36 @@ export interface SettleOwnerInput {
 }
 
 /**
- * Settle an owner: mark all of that owner's pending settlements as paid.
+ * Settle an owner atomically via the settle_owner Postgres RPC.
  *
- * Accounting model A ("Caja = agency money only"): the owner's share never
- * entered Caja (only the commission did), so paying it out does NOT create a
- * Caja expense — it would otherwise drive the balance negative. The payout is
- * recorded by the settlement's status + settled_date.
+ * The RPC runs as a single transaction (HEADLINE-1 / ADR-2):
+ *   1. Writes the breakdown JSONB snapshot onto every settlement row.
+ *   2. Stamps applied_settlement_id on consumed chargeable expenses.
+ *   3. Flips status → 'settled' with settled_date.
+ *
+ * All three writes commit together or roll back together — impossible to achieve
+ * with three sequential .from() calls over the Data API.
+ *
+ * Returns the sealed breakdown JSONB (cast to Json by the generated types),
+ * which caja-page can feed to the PDF builder in PR-C.
  */
 export function useSettleOwner() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: SettleOwnerInput) => {
-      if (input.settlement_ids.length === 0) return;
+    mutationFn: async (input: SettleOwnerInput): Promise<Json | null> => {
+      if (input.settlement_ids.length === 0) return null;
 
-      const today = new Date().toISOString().slice(0, 10);
-
-      const { error } = await supabase
+      const { data, error } = await supabase
         .schema("nodo_inmo")
-        .from("owner_settlements")
-        .update({ status: "settled", settled_date: today })
-        .in("id", input.settlement_ids);
+        .rpc("settle_owner", {
+          p_owner_id: input.owner_id,
+          p_currency: input.currency,
+          p_settlement_ids: input.settlement_ids,
+        });
 
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: OWNER_SETTLEMENTS_QUERY_KEY });
