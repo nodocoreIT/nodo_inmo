@@ -13,6 +13,14 @@ import { Button } from "@/shared/components/ui/button";
 import { BrandMark } from "@/shared/components/brand-mark";
 import { SearchInput } from "@/shared/components/search-input";
 import { ProfileDialog } from "@/features/profile/components/profile-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/shared/components/ui/dialog";
+import { AgencyProfileForm } from "@/features/agency-profile/components/agency-profile-form";
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { useAuth } from "@/app/auth/use-auth";
 import { cn } from "@/shared/lib/utils";
@@ -70,6 +78,7 @@ export function AdminLayout() {
   const { pathname } = useLocation();
   const resetSearch = useSearchStore((s) => s.reset);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [agencyProfileOpen, setAgencyProfileOpen] = useState(false);
 
   // Clear the search query when switching areas so they don't inherit it.
   useEffect(() => {
@@ -143,6 +152,19 @@ export function AdminLayout() {
             </button>
           </div>
 
+          {/* Agency profile settings — admin only */}
+          {role === "admin" && (
+            <button
+              type="button"
+              aria-label="Datos de la agencia"
+              onClick={() => setAgencyProfileOpen(true)}
+              className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-slate2-300 transition-colors hover:bg-navy-700 hover:text-white"
+            >
+              <Settings className="h-3 w-3" />
+              Datos de la agencia
+            </button>
+          )}
+
           <Button
             variant="outline"
             onClick={() => signOut()}
@@ -180,6 +202,19 @@ export function AdminLayout() {
         currentName={fullName}
         email={email}
       />
+
+      {/* Agency profile settings (admin-only) */}
+      <Dialog open={agencyProfileOpen} onOpenChange={setAgencyProfileOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Datos de la agencia</DialogTitle>
+            <DialogDescription>
+              Información que aparece en el comprobante de liquidación.
+            </DialogDescription>
+          </DialogHeader>
+          <AgencyProfileForm onSuccess={() => setAgencyProfileOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
