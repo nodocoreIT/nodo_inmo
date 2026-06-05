@@ -20,9 +20,7 @@ import React from "react";
 const mockUpsert = vi.fn();
 const mockUpload = vi.fn();
 const mockCreateSignedUrl = vi.fn();
-const mockSelect = vi.fn();
 const mockEq = vi.fn();
-const mockSingle = vi.fn();
 const mockMaybeSingle = vi.fn();
 
 vi.mock("@/shared/lib/supabase", () => ({
@@ -206,7 +204,7 @@ describe("useLogoUrl", () => {
     const { useLogoUrl } = await import(
       "@/features/agency-profile/hooks/use-logo-url"
     );
-    const { result, rerender } = renderHook(
+    const { rerender } = renderHook(
       ({ path }: { path: string | null }) => useLogoUrl(path),
       { wrapper, initialProps: { path: "org-abc/logo-uuid-test.jpg" } }
     );
