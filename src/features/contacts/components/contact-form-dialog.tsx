@@ -21,7 +21,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/shared/components/ui/form";
-import type { ContactRow, ContactRole } from "@/features/contacts/hooks/use-contacts";
+import type {
+  ContactRow,
+  ContactRole,
+} from "@/features/contacts/hooks/use-contacts";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +55,10 @@ function toNumberOrDefault(v: string | undefined | null, def: number): number {
   return isNaN(n) ? def : n;
 }
 
-function buildRoles(values: ContactFormValues, defaultRole?: ContactRole): string[] {
+function buildRoles(
+  values: ContactFormValues,
+  defaultRole?: ContactRole,
+): string[] {
   const roles: string[] = [];
   if (values.role_owner) roles.push("owner");
   if (values.role_tenant) roles.push("tenant");
@@ -154,9 +160,10 @@ export function ContactFormDialog({
       phone: contact?.phone ?? "",
       email: contact?.email ?? "",
       address: contact?.address ?? "",
-      commission_rate: contact?.commission_rate != null
-        ? String(contact.commission_rate)
-        : "10",
+      commission_rate:
+        contact?.commission_rate != null
+          ? String(contact.commission_rate)
+          : "10",
       can_view_rentals: contact?.can_view_rentals ?? false,
       can_view_construction: contact?.can_view_construction ?? false,
       can_view_sales: contact?.can_view_sales ?? false,
@@ -172,12 +179,19 @@ export function ContactFormDialog({
   const showOwnerFields = isEdit ? watchRoleOwner : hasOwnerRole;
 
   async function handleSubmit(values: ContactFormValues) {
-    await onSubmit(buildPayload(values, isEdit ? undefined : defaultRole), contact);
+    await onSubmit(
+      buildPayload(values, isEdit ? undefined : defaultRole),
+      contact,
+    );
     if (!isEdit) form.reset();
     onSuccess?.();
   }
 
-  const title = isEdit ? "Editar contacto" : defaultRole === "tenant" ? "Nuevo inquilino" : "Nuevo propietario";
+  const title = isEdit
+    ? "Editar contacto"
+    : defaultRole === "tenant"
+      ? "Nuevo inquilino"
+      : "Nuevo propietario";
   const description = isEdit
     ? "Modificá los campos y guardá los cambios."
     : "Completá los campos para registrar el nuevo contacto.";
@@ -241,7 +255,9 @@ export function ContactFormDialog({
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel htmlFor="contact-phone-input">Teléfono</FormLabel>
+                    <FormLabel htmlFor="contact-phone-input">
+                      Teléfono
+                    </FormLabel>
                     <FormControl>
                       <Input
                         id="contact-phone-input"
@@ -284,21 +300,6 @@ export function ContactFormDialog({
                   name="commission_rate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel htmlFor="contact-commission-input">
-                        Comisión (%)
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          id="contact-commission-input"
-                          aria-label="Comisión (%)"
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={0.5}
-                          placeholder="10"
-                          {...field}
-                        />
-                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -312,7 +313,9 @@ export function ContactFormDialog({
               name="address"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel htmlFor="contact-address-input">Dirección</FormLabel>
+                  <FormLabel htmlFor="contact-address-input">
+                    Dirección
+                  </FormLabel>
                   <FormControl>
                     <Input
                       id="contact-address-input"

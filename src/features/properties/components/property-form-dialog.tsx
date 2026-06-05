@@ -52,6 +52,7 @@ const schema = z.object({
   inventory_description: z.string().optional(),
   // Owner FK — empty string means "no owner" (null)
   owner_id: z.string().optional(),
+  commission_rate: z.string().optional(),
 });
 
 export type PropertyFormValues = z.infer<typeof schema>;
@@ -104,6 +105,7 @@ function buildPayload(values: PropertyFormValues) {
     description: values.description || null,
     inventory_description: values.inventory_description || null,
     owner_id: values.owner_id || null,
+    commission_rate: toNumberOrNull(values.commission_rate),
   };
 }
 
@@ -134,6 +136,7 @@ export function PropertyFormDialog({
       description: property?.description ?? "",
       inventory_description: property?.inventory_description ?? "",
       owner_id: property?.owner_id ?? "",
+      commission_rate: toStringOrEmpty(property?.commission_rate),
     },
   });
 
@@ -417,6 +420,39 @@ export function PropertyFormDialog({
                 </FormItem>
               )}
             />
+
+            {/* Commission Rate (Conditional on owner selection) */}
+            {form.watch("owner_id") && (
+              <FormField
+                control={form.control as any}
+                name="commission_rate"
+                render={({ field }) => {
+                  const operation = form.watch("operation");
+                  const label =
+                    operation === "sale"
+                      ? "Honorarios por intermediación (%)"
+                      : "Comisión por alquiler (%)";
+                  return (
+                    <FormItem>
+                      <FormLabel htmlFor="commission-rate-input">{label}</FormLabel>
+                      <FormControl>
+                        <Input
+                          id="commission-rate-input"
+                          aria-label={label}
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          max={100}
+                          placeholder="0.00"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+            )}
 
             <DialogFooter className="mt-2">
               <Button
