@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/shared/lib/supabase";
 import type { Json } from "@/shared/types/database";
 import { OWNER_SETTLEMENTS_QUERY_KEY } from "./use-owner-settlements";
+import { SETTLED_SETTLEMENTS_QUERY_KEY } from "./use-settled-settlements";
 
 export interface SettleOwnerInput {
   owner_id: string;
@@ -45,6 +46,7 @@ export function useSettleOwner() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: OWNER_SETTLEMENTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: SETTLED_SETTLEMENTS_QUERY_KEY });
     },
   });
 }

@@ -100,6 +100,12 @@ vi.mock("@/features/caja/components/movement-form-dialog", () => ({
   MovementFormDialog: () => null,
 }));
 
+const mockUseSettledSettlements = vi.fn();
+vi.mock("@/features/caja/hooks/use-settled-settlements", () => ({
+  useSettledSettlements: () => mockUseSettledSettlements(),
+  SETTLED_SETTLEMENTS_QUERY_KEY: ["nodo_inmo", "owner_settlements", "settled"],
+}));
+
 const mockUseOrgProfile = vi.fn();
 vi.mock("@/features/agency-profile/hooks/use-org-profile", () => ({
   useOrgProfile: () => mockUseOrgProfile(),
@@ -366,10 +372,48 @@ describe("slugifyOwnerName (R-C8)", () => {
 
 import { CajaPage } from "@/features/caja/components/caja-page";
 
+// Comprobante actions now live in HistorialTab (REQ-08: "realizadas" section
+// removed from Liquidaciones tab per design D6). Tests migrate to Historial tab:
+// navigate to Historial, use useSettledSettlements mock, expand a row.
+
+const SEALED_GROUPS_ARS = [
+  {
+    settlement_group: "group-1",
+    owner_id: "o1",
+    owner_name: "Juan Pérez",
+    currency: "ARS",
+    breakdown: SAMPLE_BREAKDOWN,
+    settled_date: "2026-06-01",
+    cobro_count: 2,
+  },
+];
+
+const SEALED_GROUPS_MULTI_CURRENCY = [
+  {
+    settlement_group: "group-ars",
+    owner_id: "o1",
+    owner_name: "Juan Pérez",
+    currency: "ARS",
+    breakdown: { ...SAMPLE_BREAKDOWN, currency: "ARS" },
+    settled_date: "2026-06-01",
+    cobro_count: 1,
+  },
+  {
+    settlement_group: "group-usd",
+    owner_id: "o1",
+    owner_name: "Juan Pérez",
+    currency: "USD",
+    breakdown: { ...SAMPLE_BREAKDOWN, currency: "USD" },
+    settled_date: "2026-06-01",
+    cobro_count: 1,
+  },
+];
+
 describe("CajaPage — Comprobante actions (R-C7 / R-C9 / R-C10 / R-C12)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseCashMovements.mockReturnValue({ data: [], isLoading: false, isError: false });
+    mockUseOwnerSettlements.mockReturnValue({ data: [], isLoading: false, isError: false });
     mockUseOrgProfile.mockReturnValue({ data: null, isLoading: false });
     mockUseLogoUrl.mockReturnValue({ data: null, isLoading: false });
 
@@ -391,14 +435,15 @@ describe("CajaPage — Comprobante actions (R-C7 / R-C9 / R-C10 / R-C12)", () =>
   });
 
   it("R-C10: shows Descargar but NOT Compartir when navigator.share is undefined", async () => {
-    mockUseOwnerSettlements.mockReturnValue({
-      data: SEALED_SETTLEMENTS,
+    mockUseSettledSettlements.mockReturnValue({
+      groups: SEALED_GROUPS_ARS,
       isLoading: false,
       isError: false,
     });
 
     render(<CajaPage />, { wrapper: makeWrapper() });
-    await userEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
+    await userEvent.click(screen.getByRole("button", { name: "Historial" }));
+    await userEvent.click(screen.getByRole("button", { name: /expandir group-1/i }));
 
     expect(screen.getByRole("button", { name: /descargar/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /compartir/i })).not.toBeInTheDocument();
@@ -416,41 +461,52 @@ describe("CajaPage — Comprobante actions (R-C7 / R-C9 / R-C10 / R-C12)", () =>
       configurable: true,
     });
 
-    mockUseOwnerSettlements.mockReturnValue({
-      data: SEALED_SETTLEMENTS,
+    mockUseSettledSettlements.mockReturnValue({
+      groups: SEALED_GROUPS_ARS,
       isLoading: false,
       isError: false,
     });
 
     render(<CajaPage />, { wrapper: makeWrapper() });
-    await userEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
+    await userEvent.click(screen.getByRole("button", { name: "Historial" }));
+    await userEvent.click(screen.getByRole("button", { name: /expandir group-1/i }));
 
     expect(screen.getByRole("button", { name: /compartir/i })).toBeInTheDocument();
   });
 
-  it("R-C12: two-currency owner shows two Descargar actions (one per currency)", async () => {
-    mockUseOwnerSettlements.mockReturnValue({
-      data: SEALED_SETTLEMENTS_MULTI_CURRENCY,
+  it("R-C12: two-currency owner shows two distinct history rows each with a Descargar action", async () => {
+    mockUseSettledSettlements.mockReturnValue({
+      groups: SEALED_GROUPS_MULTI_CURRENCY,
       isLoading: false,
       isError: false,
     });
 
     render(<CajaPage />, { wrapper: makeWrapper() });
-    await userEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
+    await userEvent.click(screen.getByRole("button", { name: "Historial" }));
 
-    const downloadButtons = screen.getAllByRole("button", { name: /descargar/i });
-    expect(downloadButtons).toHaveLength(2);
+    // Two distinct expand buttons — one per group/currency
+    expect(screen.getByRole("button", { name: /expandir group-ars/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /expandir group-usd/i })).toBeInTheDocument();
+
+    // Expand ARS → Descargar visible
+    await userEvent.click(screen.getByRole("button", { name: /expandir group-ars/i }));
+    expect(screen.getByRole("button", { name: /descargar/i })).toBeInTheDocument();
+
+    // Expand USD (accordion collapses ARS) → Descargar still visible (now for USD row)
+    await userEvent.click(screen.getByRole("button", { name: /expandir group-usd/i }));
+    expect(screen.getByRole("button", { name: /descargar/i })).toBeInTheDocument();
   });
 
   it("R-C7: clicking Descargar calls handleDownload with statement data", async () => {
-    mockUseOwnerSettlements.mockReturnValue({
-      data: SEALED_SETTLEMENTS,
+    mockUseSettledSettlements.mockReturnValue({
+      groups: SEALED_GROUPS_ARS,
       isLoading: false,
       isError: false,
     });
 
     render(<CajaPage />, { wrapper: makeWrapper() });
-    await userEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
+    await userEvent.click(screen.getByRole("button", { name: "Historial" }));
+    await userEvent.click(screen.getByRole("button", { name: /expandir group-1/i }));
     await userEvent.click(screen.getByRole("button", { name: /descargar/i }));
 
     await waitFor(() => expect(mockHandleDownload).toHaveBeenCalledOnce());
@@ -476,6 +532,7 @@ describe("CajaPage — Comprobante actions (R-C7 / R-C9 / R-C10 / R-C12)", () =>
       isLoading: false,
       isError: false,
     });
+    mockUseSettledSettlements.mockReturnValue({ groups: [], isLoading: false, isError: false });
 
     render(<CajaPage />, { wrapper: makeWrapper() });
     await userEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));

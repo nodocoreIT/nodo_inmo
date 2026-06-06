@@ -29,6 +29,17 @@ vi.mock("@/features/caja/components/movement-form-dialog", () => ({
   MovementFormDialog: () => null,
 }));
 
+const mockUseSettledSettlements = vi.fn();
+vi.mock("@/features/caja/hooks/use-settled-settlements", () => ({
+  useSettledSettlements: () => mockUseSettledSettlements(),
+  SETTLED_SETTLEMENTS_QUERY_KEY: ["nodo_inmo", "owner_settlements", "settled"],
+}));
+
+// Mock HistorialTab internals to avoid pulling in PDF/profile wiring
+vi.mock("@/features/caja/components/sealed-settlement-actions", () => ({
+  SealedSettlementActions: () => null,
+}));
+
 import { CajaPage } from "@/features/caja/components/caja-page";
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -50,6 +61,7 @@ describe("CajaPage", () => {
     vi.clearAllMocks();
     mockUseCashMovements.mockReturnValue({ data: MOVEMENTS, isLoading: false, isError: false });
     mockUseOwnerSettlements.mockReturnValue({ data: SETTLEMENTS, isLoading: false, isError: false });
+    mockUseSettledSettlements.mockReturnValue({ groups: [], isLoading: false, isError: false });
   });
 
   it("shows the balance and movements on the Movimientos tab", () => {
@@ -86,5 +98,37 @@ describe("CajaPage", () => {
     mockUseCashMovements.mockReturnValue({ data: [], isLoading: false, isError: false });
     render(<CajaPage />, { wrapper });
     expect(screen.getByText(/todavía no hay movimientos/i)).toBeInTheDocument();
+  });
+
+  it("renders a Historial tab button (REQ-04)", () => {
+    render(<CajaPage />, { wrapper });
+    expect(screen.getByRole("button", { name: "Historial" })).toBeInTheDocument();
+  });
+
+  it("Liquidaciones tab has no 'realizadas' section when settled settlements exist (REQ-08)", async () => {
+    // Even with settled data in useOwnerSettlements, the Liquidaciones tab must not render a "realizadas" section
+    mockUseOwnerSettlements.mockReturnValue({
+      data: [
+        ...SETTLEMENTS,
+        {
+          id: "s-settled",
+          owner_id: "o1",
+          amount: 450000,
+          currency: "ARS",
+          status: "settled",
+          owner: { name: "Juan" },
+          breakdown: { gross: 450000, net: 405000, commission: 45000, commission_rate: 10, owner_share: 405000, deductions: [], deduction_total: 0, currency: "ARS" },
+          settlement_group: "sg-aaa",
+          settled_date: "2026-06-01",
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<CajaPage />, { wrapper });
+    await userEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
+
+    expect(screen.queryByText(/liquidaciones realizadas/i)).toBeNull();
   });
 });

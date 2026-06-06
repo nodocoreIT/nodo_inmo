@@ -3,6 +3,10 @@
  * and the settlement breakdown computation (TS mirror of the settle_owner SQL RPC).
  */
 
+import type { SealedBreakdown } from "@/features/caja/lib/settlement-statement-data";
+
+export type { SealedBreakdown };
+
 export interface MovementLike {
   type: string; // 'income' | 'expense'
   amount: number;
@@ -71,6 +75,77 @@ export function groupPendingByOwner(settlements: SettlementLike[]): OwnerGroup[]
         settlement_ids: [s.id],
       });
     }
+  }
+
+  return Array.from(map.values());
+}
+
+// ─── Sealed settlements: grouping by settlement_group ────────────────────────
+
+/**
+ * Minimal shape required from a settled settlement row for grouping.
+ * Matches the DB row + embedded owner join used by use-settled-settlements.
+ */
+export interface SettlementForGrouping {
+  id: string;
+  owner_id: string;
+  currency: string;
+  status: string;
+  breakdown: unknown;
+  settlement_group: string | null;
+  settled_date: string | null;
+  owner?: { name: string } | null;
+}
+
+/**
+ * One entry in the history table — one per distinct settlement_group UUID.
+ * Keyed by settlement_group so each liquidación is a unique row in the UI.
+ */
+export interface SealedGroup {
+  settlement_group: string;
+  owner_id: string;
+  owner_name: string;
+  currency: string;
+  breakdown: SealedBreakdown;
+  settled_date: string;
+  cobro_count: number;
+}
+
+/**
+ * Group settled settlements by settlement_group UUID, preserving insertion order
+ * (which is newest-first when the input is ordered `settled_date DESC`).
+ *
+ * Guards (in order — MUST NOT be removed):
+ *   1. status !== "settled"   → skip (guard 1: non-settled rows)
+ *   2. !s.breakdown           → skip (guard 2: null-breakdown — load-bearing)
+ *   3. !s.settlement_group    → skip (guard 3: missing group key)
+ *
+ * First row per key wins; subsequent rows with the same key are skipped.
+ * cobro_count is sourced from breakdown.cobro_count (default 0 for older snapshots).
+ */
+export function groupSealedBySettlementGroup(
+  settlements: SettlementForGrouping[],
+): SealedGroup[] {
+  const map = new Map<string, SealedGroup>();
+
+  for (const s of settlements) {
+    if (s.status !== "settled") continue;          // guard 1
+    if (!s.breakdown) continue;                    // guard 2 (MUST NOT be removed)
+    if (!s.settlement_group) continue;             // guard 3
+
+    const key = s.settlement_group;
+    if (map.has(key)) continue;                    // first row per group wins
+
+    const breakdown = s.breakdown as unknown as SealedBreakdown;
+    map.set(key, {
+      settlement_group: key,
+      owner_id: s.owner_id,
+      owner_name: s.owner?.name ?? "—",
+      currency: s.currency,
+      breakdown,
+      settled_date: s.settled_date ?? "",
+      cobro_count: breakdown.cobro_count ?? 0,
+    });
   }
 
   return Array.from(map.values());
