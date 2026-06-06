@@ -25,6 +25,10 @@ vi.mock("@/features/profile/components/profile-dialog", () => ({
   ProfileDialog: () => null,
 }));
 
+vi.mock("@/features/dashboard/components/notifications-bell", () => ({
+  NotificationsBell: () => <div data-testid="mock-notifications-bell" />,
+}));
+
 import { AdminLayout } from "@/portals/admin/components/admin-layout";
 
 function renderLayout(role: "admin" | "agent" = "admin") {

@@ -93,9 +93,37 @@ describe("ContractFormDialog — edit mode", () => {
       { wrapper },
     );
     expect(screen.getByText(/editar contrato/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/alquiler/i)).toHaveValue(250000);
+    expect(screen.getByLabelText(/alquiler/i)).toHaveValue("$ 250.000");
     expect(screen.getByLabelText(/ana garcía/i)).toBeChecked();
     expect(screen.getByLabelText(/luis díaz/i)).not.toBeChecked();
+  });
+
+  it("renders the Datos del contrato section with contract_type, signing_date, and signing_city", () => {
+    render(
+      <ContractFormDialog open onOpenChange={vi.fn()} contract={contract} onSubmit={vi.fn()} />,
+      { wrapper },
+    );
+    expect(screen.getAllByText(/datos del contrato/i).length).toBeGreaterThan(0);
+    // FormLabel text present
+    expect(screen.getByText(/tipo de contrato/i)).toBeInTheDocument();
+    expect(screen.getByText(/fecha de firma/i)).toBeInTheDocument();
+    expect(screen.getByText(/ciudad de firma/i)).toBeInTheDocument();
+    // Inputs accessible
+    expect(screen.getByLabelText(/fecha de firma/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/ciudad de firma/i)).toBeInTheDocument();
+  });
+
+  it("defaults contract_type to habitacional", () => {
+    render(
+      <ContractFormDialog open onOpenChange={vi.fn()} contract={contract} onSubmit={vi.fn()} />,
+      { wrapper },
+    );
+    // The Select mock renders as <select> — find by role combobox
+    const selects = screen.getAllByRole("combobox") as HTMLSelectElement[];
+    // contract_type select is the last combobox added (after existing currency, expenses_paid_by, etc.)
+    const contractTypeSelect = selects.find((s) => s.value === "habitacional");
+    expect(contractTypeSelect).toBeDefined();
+    expect(contractTypeSelect?.value).toBe("habitacional");
   });
 
   it("submits the edited payload with the reconciled guarantor_ids", async () => {
@@ -119,6 +147,7 @@ describe("ContractFormDialog — edit mode", () => {
       property_id: "prop-1",
       tenant_id: "tenant-1",
       rent_amount: 300000,
+      contract_type: "habitacional",
     });
     expect(payload.guarantor_ids.sort()).toEqual(["guar-1", "guar-2"]);
   });

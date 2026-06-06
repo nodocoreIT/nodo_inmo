@@ -195,6 +195,7 @@ export type Database = {
           adjustment_index: string
           adjustment_period_months: number
           commission_amount: number | null
+          contract_type: string
           created_at: string
           currency: string
           deposit_amount: number | null
@@ -206,6 +207,8 @@ export type Database = {
           org_id: string
           property_id: string
           rent_amount: number
+          signing_city: string | null
+          signing_date: string | null
           start_date: string
           status: string
           tenant_id: string
@@ -215,6 +218,7 @@ export type Database = {
           adjustment_index?: string
           adjustment_period_months?: number
           commission_amount?: number | null
+          contract_type?: string
           created_at?: string
           currency?: string
           deposit_amount?: number | null
@@ -226,6 +230,8 @@ export type Database = {
           org_id: string
           property_id: string
           rent_amount: number
+          signing_city?: string | null
+          signing_date?: string | null
           start_date: string
           status?: string
           tenant_id: string
@@ -235,6 +241,7 @@ export type Database = {
           adjustment_index?: string
           adjustment_period_months?: number
           commission_amount?: number | null
+          contract_type?: string
           created_at?: string
           currency?: string
           deposit_amount?: number | null
@@ -246,6 +253,8 @@ export type Database = {
           org_id?: string
           property_id?: string
           rent_amount?: number
+          signing_city?: string | null
+          signing_date?: string | null
           start_date?: string
           status?: string
           tenant_id?: string
@@ -264,6 +273,60 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          contract_id: string | null
+          document_type: string
+          file_path: string
+          id: string
+          label: string
+          notes: string | null
+          org_id: string
+          property_id: string | null
+          updated_at: string
+          uploaded_at: string
+        }
+        Insert: {
+          contract_id?: string | null
+          document_type?: string
+          file_path: string
+          id?: string
+          label: string
+          notes?: string | null
+          org_id: string
+          property_id?: string | null
+          updated_at?: string
+          uploaded_at?: string
+        }
+        Update: {
+          contract_id?: string | null
+          document_type?: string
+          file_path?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          org_id?: string
+          property_id?: string | null
+          updated_at?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]
@@ -426,16 +489,25 @@ export type Database = {
       properties: {
         Row: {
           address: string
+          bathrooms: number | null
           commission_rate: number | null
           created_at: string
           currency: string
           description: string | null
+          has_bbq: boolean
+          has_elevator: boolean
+          has_garage: boolean
+          has_garden: boolean
+          has_laundry: boolean
+          has_parking: boolean
+          has_pool: boolean
           id: string
           inventory_description: string | null
           main_photo: string | null
           operation: string
           org_id: string
           owner_id: string | null
+          pets_allowed: boolean
           property_type: string
           rooms: number | null
           sale_price: number | null
@@ -445,16 +517,25 @@ export type Database = {
         }
         Insert: {
           address: string
+          bathrooms?: number | null
           commission_rate?: number | null
           created_at?: string
           currency?: string
           description?: string | null
+          has_bbq?: boolean
+          has_elevator?: boolean
+          has_garage?: boolean
+          has_garden?: boolean
+          has_laundry?: boolean
+          has_parking?: boolean
+          has_pool?: boolean
           id?: string
           inventory_description?: string | null
           main_photo?: string | null
           operation: string
           org_id: string
           owner_id?: string | null
+          pets_allowed?: boolean
           property_type: string
           rooms?: number | null
           sale_price?: number | null
@@ -464,16 +545,25 @@ export type Database = {
         }
         Update: {
           address?: string
+          bathrooms?: number | null
           commission_rate?: number | null
           created_at?: string
           currency?: string
           description?: string | null
+          has_bbq?: boolean
+          has_elevator?: boolean
+          has_garage?: boolean
+          has_garden?: boolean
+          has_laundry?: boolean
+          has_parking?: boolean
+          has_pool?: boolean
           id?: string
           inventory_description?: string | null
           main_photo?: string | null
           operation?: string
           org_id?: string
           owner_id?: string | null
+          pets_allowed?: boolean
           property_type?: string
           rooms?: number | null
           sale_price?: number | null
@@ -547,6 +637,69 @@ export type Database = {
           },
           {
             foreignKeyName: "property_expenses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assigned_to: string | null
+          category: string
+          contact_id: string | null
+          created_at: string
+          description: string | null
+          due_date: string
+          id: string
+          org_id: string
+          priority: string
+          property_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          org_id: string
+          priority?: string
+          property_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          org_id?: string
+          priority?: string
+          property_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"

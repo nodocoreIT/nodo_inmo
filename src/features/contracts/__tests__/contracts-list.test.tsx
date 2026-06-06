@@ -36,6 +36,13 @@ vi.mock("@/features/contracts/components/create-contract-dialog", () => ({
   CreateContractDialog: () => null,
 }));
 
+// ContractLocacionButton pulls in org-profile hooks; stub for list test.
+vi.mock("@/features/contracts/components/contract-locacion-button", () => ({
+  ContractLocacionButton: () => (
+    <button aria-label="Generar contrato">Generar contrato</button>
+  ),
+}));
+
 import { ContractsList } from "@/features/contracts/components/contracts-list";
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -96,5 +103,29 @@ describe("ContractsList", () => {
     expect(screen.getByText(/250\.000/)).toBeInTheDocument();
     expect(screen.getByText(/01\/01\/2026/)).toBeInTheDocument();
     expect(screen.getByText("Activo")).toBeInTheDocument();
+  });
+
+  it("renders the Generar contrato button in the Acciones cell for each row", () => {
+    mockUseContracts.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [
+        {
+          id: "c1",
+          property: { address: "Lavalle 100" },
+          tenant: { name: "Juan Pérez" },
+          start_date: "2026-01-01",
+          end_date: "2028-01-01",
+          rent_amount: 250000,
+          currency: "ARS",
+          adjustment_index: "ICL",
+          adjustment_period_months: 3,
+          status: "active",
+        },
+      ],
+    });
+    renderList();
+
+    expect(screen.getByRole("button", { name: /generar contrato/i })).toBeInTheDocument();
   });
 });

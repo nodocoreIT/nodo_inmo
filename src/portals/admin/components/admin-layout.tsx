@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
+  LayoutDashboard,
   Home,
   Users,
   UserCheck,
   FileText,
   CreditCard,
   Wallet,
+  FolderOpen,
+  Building2,
+  Calendar,
   LogOut,
   Settings,
   Menu,
@@ -28,6 +32,8 @@ import { useSearchStore } from "@/shared/search/use-search-store";
 import { useAuth } from "@/app/auth/use-auth";
 import { cn } from "@/shared/lib/utils";
 import { SettingsDialog } from "./settings-dialog";
+import { FeedbackFAB } from "@/features/feedback/components/feedback-node";
+import { NotificationsBell } from "@/features/dashboard/components/notifications-bell";
 
 // ── Nav item definition ───────────────────────────────────────────────────────
 
@@ -39,12 +45,16 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { to: "/admin/dashboard", label: "Inicio", icon: LayoutDashboard },
   { to: "/admin/properties", label: "Propiedades", icon: Home },
   { to: "/admin/owners", label: "Propietarios", icon: UserCheck },
   { to: "/admin/tenants", label: "Inquilinos", icon: Users },
   { to: "/admin/contracts", label: "Contratos", icon: FileText },
   { to: "/admin/payments", label: "Pagos", icon: CreditCard },
   { to: "/admin/caja", label: "Caja", icon: Wallet, adminOnly: true },
+  { to: "/admin/documentos", label: "Documentos", icon: FolderOpen },
+  { to: "/admin/agenda", label: "Agenda y Tareas", icon: Calendar },
+  { to: "/admin/portal", label: "Navegar", icon: Building2 },
 ];
 
 // Top-bar search placeholder per searchable route.
@@ -53,16 +63,21 @@ const SEARCH_PLACEHOLDERS: Record<string, string> = {
   "/admin/owners": "Buscar propietarios…",
   "/admin/tenants": "Buscar inquilinos…",
   "/admin/contracts": "Buscar contratos…",
+  "/admin/documentos": "Buscar por inquilino, propiedad…",
+  "/admin/agenda": "Buscar tareas…",
 };
 
 // Header title per route (shown in the top bar, nodo-core style).
 const ROUTE_TITLES: Record<string, string> = {
+  "/admin/dashboard": "Inicio",
   "/admin/properties": "Propiedades",
   "/admin/owners": "Propietarios",
   "/admin/tenants": "Inquilinos",
   "/admin/contracts": "Contratos",
   "/admin/payments": "Pagos",
   "/admin/caja": "Caja",
+  "/admin/documentos": "Documentos",
+  "/admin/agenda": "Agenda y Tareas",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -241,11 +256,14 @@ export function AdminLayout() {
               <h1 className="truncate text-lg sm:text-xl font-bold text-navy">{title}</h1>
             </div>
           </div>
-          {placeholder && (
-            <div className="max-w-[150px] sm:max-w-xs md:max-w-md w-full flex-shrink">
-              <SearchInput placeholder={placeholder} />
-            </div>
-          )}
+          <div className="flex items-center gap-4 flex-1 justify-end max-w-[150px] sm:max-w-xs md:max-w-md w-full">
+            {placeholder && (
+              <div className="w-full flex-shrink">
+                <SearchInput placeholder={placeholder} />
+              </div>
+            )}
+            <NotificationsBell />
+          </div>
         </header>
 
         {/* Content area */}
@@ -277,6 +295,9 @@ export function AdminLayout() {
 
       {/* Global Config Settings Dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* Floating feedback node (only on Dashboard/Inicio) */}
+      {pathname === "/admin/dashboard" && <FeedbackFAB />}
     </div>
   );
 }

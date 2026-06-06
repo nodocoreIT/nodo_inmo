@@ -1,8 +1,19 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2 } from "lucide-react";
+import {
+  Loader2,
+  Waves,
+  PawPrint,
+  Car,
+  TreePine,
+  WashingMachine,
+  Flame,
+  MoveVertical,
+  ParkingCircle,
+  ImagePlus,
+} from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
@@ -31,36 +42,54 @@ import {
 } from "@/shared/components/ui/select";
 import type { PropertyRow } from "@/features/properties/hooks/use-properties";
 import { useContacts } from "@/features/contacts/hooks/use-contacts";
+import { formatCurrencyInput, parseCurrencyInput } from "@/shared/lib/format-money";
+import { useUploadPropertyPhoto } from "@/features/properties/hooks/use-upload-property-photo";
+import { usePropertyPhotoUrl } from "@/features/properties/hooks/use-property-photo-url";
+import { cn } from "@/shared/lib/utils";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
 const schema = z.object({
   address: z.string().min(1, "Dirección requerida"),
-  operation: z.enum(["rent", "sale"], {
-    error: "Seleccioná una operación",
-  }),
+  operation: z.enum(["rent", "sale"], { error: "Seleccioná una operación" }),
   property_type: z.enum(["apartment", "house", "commercial", "land", "other"], {
     error: "Seleccioná un tipo",
   }),
   status: z.enum(["available", "reserved", "rented", "sold", "inactive"]),
   currency: z.enum(["ARS", "USD"]),
-  // String fields for number inputs — coerced in onSubmit
   sale_price: z.string().optional(),
   total_sqm: z.string().optional(),
   rooms: z.string().optional(),
+  bathrooms: z.string().optional(),
   description: z.string().optional(),
   inventory_description: z.string().optional(),
-  // Owner FK — empty string means "no owner" (null)
   owner_id: z.string().optional(),
   commission_rate: z.string().optional(),
+  // Amenities
+  has_pool: z.boolean().default(false),
+  pets_allowed: z.boolean().default(false),
+  has_garage: z.boolean().default(false),
+  has_garden: z.boolean().default(false),
+  has_laundry: z.boolean().default(false),
+  has_bbq: z.boolean().default(false),
+  has_elevator: z.boolean().default(false),
+  has_parking: z.boolean().default(false),
 });
 
 export type PropertyFormValues = z.infer<typeof schema>;
 
-// Radix Select forbids an empty-string item value (it reserves "" for the
-// cleared state). Use a sentinel for the "no owner" option and map it back to
-// an empty string (→ null) on change.
 const NO_OWNER = "none";
+
+const AMENITY_TOGGLES = [
+  { name: "has_pool" as const, label: "Pileta", icon: <Waves className="h-4 w-4" /> },
+  { name: "pets_allowed" as const, label: "Mascotas", icon: <PawPrint className="h-4 w-4" /> },
+  { name: "has_garage" as const, label: "Garaje", icon: <Car className="h-4 w-4" /> },
+  { name: "has_garden" as const, label: "Jardín", icon: <TreePine className="h-4 w-4" /> },
+  { name: "has_laundry" as const, label: "Lavadero", icon: <WashingMachine className="h-4 w-4" /> },
+  { name: "has_bbq" as const, label: "Parrilla", icon: <Flame className="h-4 w-4" /> },
+  { name: "has_elevator" as const, label: "Ascensor", icon: <MoveVertical className="h-4 w-4" /> },
+  { name: "has_parking" as const, label: "Estacionamiento", icon: <ParkingCircle className="h-4 w-4" /> },
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -82,6 +111,8 @@ interface PropertyFormDialogProps {
   onOpenChange: (open: boolean) => void;
   /** When provided the dialog is in edit mode and prefills the form */
   property?: PropertyRow;
+  /** Pre-filled values from voice extraction (create mode only) */
+  defaultValues?: Partial<PropertyFormValues>;
   /** Called after a successful submit */
   onSuccess?: () => void;
   /** Called when the form values should be persisted; receives the coerced payload */
@@ -99,13 +130,22 @@ function buildPayload(values: PropertyFormValues) {
     property_type: values.property_type,
     status: values.status,
     currency: values.currency,
-    sale_price: toNumberOrNull(values.sale_price),
+    sale_price: parseCurrencyInput(values.sale_price),
     total_sqm: toNumberOrNull(values.total_sqm),
     rooms: toNumberOrNull(values.rooms),
+    bathrooms: toNumberOrNull(values.bathrooms),
     description: values.description || null,
     inventory_description: values.inventory_description || null,
     owner_id: values.owner_id || null,
     commission_rate: toNumberOrNull(values.commission_rate),
+    has_pool: values.has_pool,
+    pets_allowed: values.pets_allowed,
+    has_garage: values.has_garage,
+    has_garden: values.has_garden,
+    has_laundry: values.has_laundry,
+    has_bbq: values.has_bbq,
+    has_elevator: values.has_elevator,
+    has_parking: values.has_parking,
   };
 }
 
@@ -115,30 +155,60 @@ export function PropertyFormDialog({
   open,
   onOpenChange,
   property,
+  defaultValues: voiceDefaults,
   onSuccess,
   onSubmit,
   isPending = false,
 }: PropertyFormDialogProps) {
   const isEdit = !!property;
   const { data: owners = [] } = useContacts("owner");
+  const uploadPhoto = useUploadPropertyPhoto();
+  const { data: currentPhotoUrl } = usePropertyPhotoUrl(property?.main_photo);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
-      address: property?.address ?? "",
-      operation: (property?.operation as any) ?? undefined,
-      property_type: (property?.property_type as any) ?? undefined,
-      status: (property?.status as any) ?? "available",
-      currency: (property?.currency as any) ?? "ARS",
-      sale_price: toStringOrEmpty(property?.sale_price),
-      total_sqm: toStringOrEmpty(property?.total_sqm),
-      rooms: toStringOrEmpty(property?.rooms),
-      description: property?.description ?? "",
+      address: property?.address ?? voiceDefaults?.address ?? "",
+      operation: (property?.operation as any) ?? voiceDefaults?.operation ?? undefined,
+      property_type: (property?.property_type as any) ?? voiceDefaults?.property_type ?? undefined,
+      status: (property?.status as any) ?? voiceDefaults?.status ?? "available",
+      currency: (property?.currency as any) ?? voiceDefaults?.currency ?? "ARS",
+      sale_price:
+        formatCurrencyInput(property?.sale_price, (property?.currency as any) ?? "ARS") ||
+        voiceDefaults?.sale_price ||
+        "",
+      total_sqm: toStringOrEmpty(property?.total_sqm) || voiceDefaults?.total_sqm || "",
+      rooms: toStringOrEmpty(property?.rooms) || voiceDefaults?.rooms || "",
+      bathrooms: toStringOrEmpty(property?.bathrooms),
+      description: property?.description ?? voiceDefaults?.description ?? "",
       inventory_description: property?.inventory_description ?? "",
       owner_id: property?.owner_id ?? "",
       commission_rate: toStringOrEmpty(property?.commission_rate),
+      has_pool: property?.has_pool ?? false,
+      pets_allowed: property?.pets_allowed ?? false,
+      has_garage: property?.has_garage ?? false,
+      has_garden: property?.has_garden ?? false,
+      has_laundry: property?.has_laundry ?? false,
+      has_bbq: property?.has_bbq ?? false,
+      has_elevator: property?.has_elevator ?? false,
+      has_parking: property?.has_parking ?? false,
     },
   });
+
+
+  const currency = form.watch("currency") || "ARS";
+  const prevCurrencyRef = useRef(currency);
+  useEffect(() => {
+    if (prevCurrencyRef.current !== currency) {
+      const currentPrice = form.getValues("sale_price");
+      if (currentPrice) {
+        const raw = currentPrice.replace(/\D/g, "");
+        form.setValue("sale_price", formatCurrencyInput(raw, currency));
+      }
+      prevCurrencyRef.current = currency;
+    }
+  }, [currency, form]);
 
   async function handleSubmit(values: PropertyFormValues) {
     await onSubmit(buildPayload(values), property);
@@ -146,9 +216,16 @@ export function PropertyFormDialog({
     onSuccess?.();
   }
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !property?.id || !property?.org_id) return;
+    uploadPhoto.mutate({ propertyId: property.id, orgId: property.org_id, file });
+    e.target.value = "";
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? "Editar propiedad" : "Nueva propiedad"}
@@ -195,10 +272,7 @@ export function PropertyFormDialog({
                     <FormLabel htmlFor="operation-trigger">Operación</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger
-                          id="operation-trigger"
-                          aria-label="Operación"
-                        >
+                        <SelectTrigger id="operation-trigger" aria-label="Operación">
                           <SelectValue placeholder="Seleccioná" />
                         </SelectTrigger>
                       </FormControl>
@@ -217,15 +291,10 @@ export function PropertyFormDialog({
                 name="property_type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel htmlFor="type-trigger">
-                      Tipo de propiedad
-                    </FormLabel>
+                    <FormLabel htmlFor="type-trigger">Tipo de propiedad</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger
-                          id="type-trigger"
-                          aria-label="Tipo de propiedad"
-                        >
+                        <SelectTrigger id="type-trigger" aria-label="Tipo de propiedad">
                           <SelectValue placeholder="Seleccioná" />
                         </SelectTrigger>
                       </FormControl>
@@ -253,10 +322,7 @@ export function PropertyFormDialog({
                     <FormLabel htmlFor="status-trigger">Estado</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger
-                          id="status-trigger"
-                          aria-label="Estado"
-                        >
+                        <SelectTrigger id="status-trigger" aria-label="Estado">
                           <SelectValue placeholder="Disponible" />
                         </SelectTrigger>
                       </FormControl>
@@ -281,10 +347,7 @@ export function PropertyFormDialog({
                     <FormLabel htmlFor="currency-trigger">Moneda</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger
-                          id="currency-trigger"
-                          aria-label="Moneda"
-                        >
+                        <SelectTrigger id="currency-trigger" aria-label="Moneda">
                           <SelectValue placeholder="ARS" />
                         </SelectTrigger>
                       </FormControl>
@@ -299,43 +362,25 @@ export function PropertyFormDialog({
               />
             </div>
 
-            {/* Price + Sqm + Rooms */}
-            <div className="grid grid-cols-3 gap-4">
+            {/* Price + Sqm + Rooms + Bathrooms */}
+            <div className="grid grid-cols-4 gap-3">
               <FormField
                 control={form.control as any}
                 name="sale_price"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="col-span-2">
                     <FormLabel htmlFor="price-input">Precio</FormLabel>
                     <FormControl>
                       <Input
                         id="price-input"
                         aria-label="Precio"
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control as any}
-                name="total_sqm"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel htmlFor="sqm-input">m²</FormLabel>
-                    <FormControl>
-                      <Input
-                        id="sqm-input"
-                        aria-label="m²"
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        {...field}
+                        type="text"
+                        placeholder={currency === "ARS" ? "$ 0" : "US$ 0"}
+                        value={field.value}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          field.onChange(formatCurrencyInput(raw, currency));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -348,21 +393,69 @@ export function PropertyFormDialog({
                 name="rooms"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel htmlFor="rooms-input">Ambientes</FormLabel>
+                    <FormLabel htmlFor="rooms-input">Amb.</FormLabel>
                     <FormControl>
-                      <Input
-                        id="rooms-input"
-                        aria-label="Ambientes"
-                        type="number"
-                        min={1}
-                        placeholder="0"
-                        {...field}
-                      />
+                      <Input id="rooms-input" aria-label="Ambientes" type="number" min={1} placeholder="0" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control as any}
+                name="bathrooms"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel htmlFor="bathrooms-input">Baños</FormLabel>
+                    <FormControl>
+                      <Input id="bathrooms-input" aria-label="Baños" type="number" min={0} placeholder="0" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Sqm */}
+            <FormField
+              control={form.control as any}
+              name="total_sqm"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel htmlFor="sqm-input">Superficie (m²)</FormLabel>
+                  <FormControl>
+                    <Input id="sqm-input" aria-label="m²" type="number" min={0} placeholder="0" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Amenities */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">Características</p>
+              <div className="grid grid-cols-4 gap-2">
+                {AMENITY_TOGGLES.map(({ name, label, icon }) => {
+                  const active = form.watch(name);
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => form.setValue(name, !active)}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 rounded-md border p-2.5 text-[11px] font-medium transition-colors",
+                        active
+                          ? "border-brand bg-brand/10 text-brand"
+                          : "border-border bg-card text-slate2 hover:bg-mist",
+                      )}
+                    >
+                      {icon}
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Description */}
@@ -386,7 +479,7 @@ export function PropertyFormDialog({
               )}
             />
 
-            {/* Owner selector */}
+            {/* Owner */}
             <FormField
               control={form.control as any}
               name="owner_id"
@@ -394,16 +487,11 @@ export function PropertyFormDialog({
                 <FormItem>
                   <FormLabel htmlFor="owner-select">Propietario</FormLabel>
                   <Select
-                    onValueChange={(v) =>
-                      field.onChange(v === NO_OWNER ? "" : v)
-                    }
+                    onValueChange={(v) => field.onChange(v === NO_OWNER ? "" : v)}
                     value={field.value ? field.value : NO_OWNER}
                   >
                     <FormControl>
-                      <SelectTrigger
-                        id="owner-select"
-                        aria-label="Propietario"
-                      >
+                      <SelectTrigger id="owner-select" aria-label="Propietario">
                         <SelectValue placeholder="Sin propietario" />
                       </SelectTrigger>
                     </FormControl>
@@ -421,17 +509,16 @@ export function PropertyFormDialog({
               )}
             />
 
-            {/* Commission Rate (Conditional on owner selection) */}
+            {/* Commission Rate */}
             {form.watch("owner_id") && (
               <FormField
                 control={form.control as any}
                 name="commission_rate"
                 render={({ field }) => {
                   const operation = form.watch("operation");
-                  const label =
-                    operation === "sale"
-                      ? "Honorarios por intermediación (%)"
-                      : "Comisión por alquiler (%)";
+                  const label = operation === "sale"
+                    ? "Honorarios por intermediación (%)"
+                    : "Comisión por alquiler (%)";
                   return (
                     <FormItem>
                       <FormLabel htmlFor="commission-rate-input">{label}</FormLabel>
@@ -452,6 +539,45 @@ export function PropertyFormDialog({
                   );
                 }}
               />
+            )}
+
+            {/* Photo upload — edit mode only */}
+            {isEdit && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Foto principal</p>
+                {currentPhotoUrl && (
+                  <img
+                    src={currentPhotoUrl}
+                    alt="Foto actual"
+                    className="h-32 w-full rounded-md object-cover"
+                  />
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 w-full"
+                  disabled={uploadPhoto.isPending}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploadPhoto.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImagePlus className="h-4 w-4" />
+                  )}
+                  {uploadPhoto.isPending ? "Subiendo…" : currentPhotoUrl ? "Cambiar foto" : "Subir foto"}
+                </Button>
+                {!isEdit && (
+                  <p className="text-xs text-slate2">Podrás agregar una foto una vez creada la propiedad.</p>
+                )}
+              </div>
             )}
 
             <DialogFooter className="mt-2">
