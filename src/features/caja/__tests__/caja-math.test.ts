@@ -4,7 +4,9 @@ import {
   computeTotals,
   groupPendingByOwner,
   computeSettlementBreakdown,
+  groupSealedBySettlementGroup,
 } from "@/features/caja/lib/caja-math";
+import type { SettlementForGrouping } from "@/features/caja/lib/caja-math";
 
 describe("computeBalance", () => {
   it("adds income and subtracts expense", () => {
@@ -276,5 +278,141 @@ describe("computeSettlementBreakdown", () => {
       "ARS",
     );
     expect(result.commission).toBe(100);
+  });
+});
+
+// ─── groupSealedBySettlementGroup ─────────────────────────────────────────────
+
+describe("groupSealedBySettlementGroup", () => {
+  const baseBreakdown = {
+    gross: 500000,
+    commission_rate: 10,
+    commission: 50000,
+    owner_share: 450000,
+    deductions: [],
+    deduction_total: 0,
+    net: 450000,
+    currency: "ARS",
+    cobro_count: 2,
+    sealed_at: "2026-06-01T10:00:00Z",
+  };
+
+  function makeSettlement(overrides: Partial<SettlementForGrouping>): SettlementForGrouping {
+    return {
+      id: "s1",
+      owner_id: "o1",
+      currency: "ARS",
+      status: "settled",
+      breakdown: baseBreakdown,
+      settlement_group: "sg-aaa-111",
+      settled_date: "2026-06-01",
+      owner: { name: "Juan" },
+      ...overrides,
+    };
+  }
+
+  // Test 1 — Regression: two settlements for the same owner with different settlement_groups
+  // → returns 2 groups (history must NOT collapse same-owner entries).
+  it("returns 2 groups for the same owner with different settlement_group UUIDs", () => {
+    const settlements = [
+      makeSettlement({ id: "s1", settlement_group: "sg-aaa-111", settled_date: "2026-06-01" }),
+      makeSettlement({ id: "s2", settlement_group: "sg-bbb-222", settled_date: "2026-05-01" }),
+    ];
+    const groups = groupSealedBySettlementGroup(settlements);
+    expect(groups).toHaveLength(2);
+    const keys = groups.map((g) => g.settlement_group);
+    expect(keys).toContain("sg-aaa-111");
+    expect(keys).toContain("sg-bbb-222");
+  });
+
+  // Test 2 — Multiple rows with the same settlement_group → 1 group, first row's breakdown
+  it("deduplicates rows with the same settlement_group, keeping the first row's breakdown", () => {
+    const firstBreakdown = { ...baseBreakdown, net: 450000 };
+    const secondBreakdown = { ...baseBreakdown, net: 999999 }; // should be ignored
+    const settlements = [
+      makeSettlement({ id: "s1", settlement_group: "sg-aaa-111", breakdown: firstBreakdown }),
+      makeSettlement({ id: "s2", settlement_group: "sg-aaa-111", breakdown: secondBreakdown }),
+    ];
+    const groups = groupSealedBySettlementGroup(settlements);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].breakdown.net).toBe(450000);
+  });
+
+  // Test 3 — Null breakdown row → skipped, no throw, not in output
+  it("skips null-breakdown rows silently without throwing", () => {
+    const settlements = [
+      makeSettlement({ id: "s1", settlement_group: "sg-aaa-111", breakdown: null }),
+      makeSettlement({ id: "s2", settlement_group: "sg-bbb-222" }), // valid
+    ];
+    let groups: ReturnType<typeof groupSealedBySettlementGroup> | undefined;
+    expect(() => {
+      groups = groupSealedBySettlementGroup(settlements);
+    }).not.toThrow();
+    expect(groups).toHaveLength(1);
+    expect(groups![0].settlement_group).toBe("sg-bbb-222");
+  });
+
+  // Test 4 — Null settlement_group → skipped
+  it("skips rows with a null settlement_group", () => {
+    const settlements = [
+      makeSettlement({ id: "s1", settlement_group: null }),
+      makeSettlement({ id: "s2", settlement_group: "sg-bbb-222" }),
+    ];
+    const groups = groupSealedBySettlementGroup(settlements);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].settlement_group).toBe("sg-bbb-222");
+  });
+
+  // Test 5 — Pending row → skipped (guard 1)
+  it("skips pending rows (guard 1: status !== 'settled')", () => {
+    const settlements = [
+      makeSettlement({ id: "s1", status: "pending", settlement_group: "sg-aaa-111" }),
+      makeSettlement({ id: "s2", settlement_group: "sg-bbb-222" }),
+    ];
+    const groups = groupSealedBySettlementGroup(settlements);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].settlement_group).toBe("sg-bbb-222");
+  });
+
+  // Test 6 — Ordering preserved: input ordered settled_date DESC → output newest-first
+  it("preserves newest-first ordering from input (insertion order)", () => {
+    const settlements = [
+      makeSettlement({ id: "s1", settlement_group: "sg-newer", settled_date: "2026-06-01" }),
+      makeSettlement({ id: "s2", settlement_group: "sg-older", settled_date: "2026-05-01" }),
+    ];
+    const groups = groupSealedBySettlementGroup(settlements);
+    expect(groups[0].settlement_group).toBe("sg-newer");
+    expect(groups[1].settlement_group).toBe("sg-older");
+  });
+
+  // Test 7 — cobro_count sourced from breakdown.cobro_count; defaults to 0 when absent
+  it("sources cobro_count from breakdown.cobro_count, defaulting to 0 when absent", () => {
+    const breakdownWithCount = { ...baseBreakdown, cobro_count: 5 };
+    const breakdownWithoutCount = { ...baseBreakdown };
+    delete (breakdownWithoutCount as Partial<typeof baseBreakdown>).cobro_count;
+
+    const settlements = [
+      makeSettlement({ id: "s1", settlement_group: "sg-aaa-111", breakdown: breakdownWithCount }),
+      makeSettlement({ id: "s2", settlement_group: "sg-bbb-222", breakdown: breakdownWithoutCount }),
+    ];
+    const groups = groupSealedBySettlementGroup(settlements);
+    const withCount = groups.find((g) => g.settlement_group === "sg-aaa-111");
+    const withoutCount = groups.find((g) => g.settlement_group === "sg-bbb-222");
+    expect(withCount?.cobro_count).toBe(5);
+    expect(withoutCount?.cobro_count).toBe(0);
+  });
+
+  // Empty input → empty output
+  it("returns an empty array for empty input", () => {
+    expect(groupSealedBySettlementGroup([])).toEqual([]);
+  });
+
+  // Single settlement happy path
+  it("returns a single group for a single valid settled settlement", () => {
+    const groups = groupSealedBySettlementGroup([makeSettlement({})]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].owner_name).toBe("Juan");
+    expect(groups[0].currency).toBe("ARS");
+    expect(groups[0].cobro_count).toBe(2);
   });
 });
