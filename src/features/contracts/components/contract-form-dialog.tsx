@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,6 +34,7 @@ import {
 import { useProperties } from "@/features/properties/hooks/use-properties";
 import { useContacts } from "@/features/contacts/hooks/use-contacts";
 import type { ContractWithRelations } from "@/features/contracts/hooks/use-contracts";
+import { formatCurrencyInput, parseCurrencyInput } from "@/shared/lib/format-money";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -51,17 +52,15 @@ const schema = z.object({
   adjustment_period_months: z.string().min(1, "Periodicidad requerida"),
   status: z.enum(["draft", "active", "terminated", "expired"]),
   notes: z.string().optional(),
+  // Phase C — contract generator metadata
+  contract_type: z.enum(["habitacional", "comercial"]),
+  signing_date: z.string().optional(),
+  signing_city: z.string().optional(),
 });
 
 export type ContractFormValues = z.infer<typeof schema>;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function toNumberOrNull(v: string | undefined | null): number | null {
-  if (!v || String(v).trim() === "") return null;
-  const n = Number(v);
-  return isNaN(n) ? null : n;
-}
 
 function toStr(v: number | string | null | undefined): string {
   if (v === null || v === undefined) return "";
@@ -74,16 +73,20 @@ function buildPayload(values: ContractFormValues, guarantorIds: string[]) {
     tenant_id: values.tenant_id,
     start_date: values.start_date,
     end_date: values.end_date,
-    rent_amount: Number(values.rent_amount),
+    rent_amount: parseCurrencyInput(values.rent_amount) || 0,
     currency: values.currency,
-    deposit_amount: toNumberOrNull(values.deposit_amount),
-    commission_amount: toNumberOrNull(values.commission_amount),
+    deposit_amount: parseCurrencyInput(values.deposit_amount),
+    commission_amount: parseCurrencyInput(values.commission_amount),
     expenses_paid_by: values.expenses_paid_by,
     adjustment_index: values.adjustment_index,
     adjustment_period_months: Number(values.adjustment_period_months),
     status: values.status,
     notes: values.notes || null,
     guarantor_ids: guarantorIds,
+    // Phase C — contract generator metadata
+    contract_type: values.contract_type,
+    signing_date: values.signing_date || null,
+    signing_city: values.signing_city || null,
   };
 }
 
@@ -125,17 +128,42 @@ export function ContractFormDialog({
       tenant_id: contract?.tenant_id ?? "",
       start_date: contract?.start_date ?? "",
       end_date: contract?.end_date ?? "",
-      rent_amount: toStr(contract?.rent_amount),
+      rent_amount: formatCurrencyInput(contract?.rent_amount, contract?.currency as any ?? "ARS"),
       currency: (contract?.currency as any) ?? "ARS",
-      deposit_amount: toStr(contract?.deposit_amount),
-      commission_amount: toStr(contract?.commission_amount),
+      deposit_amount: formatCurrencyInput(contract?.deposit_amount, contract?.currency as any ?? "ARS"),
+      commission_amount: formatCurrencyInput(contract?.commission_amount, contract?.currency as any ?? "ARS"),
       expenses_paid_by: (contract?.expenses_paid_by as any) ?? "tenant",
       adjustment_index: (contract?.adjustment_index as any) ?? "IPC",
       adjustment_period_months: toStr(contract?.adjustment_period_months) || "12",
       status: (contract?.status as any) ?? "draft",
       notes: contract?.notes ?? "",
+      // Phase C — contract generator metadata
+      contract_type: (contract?.contract_type as any) ?? "habitacional",
+      signing_date: contract?.signing_date ?? "",
+      signing_city: contract?.signing_city ?? "Ciudad Autónoma de Buenos Aires",
     },
   });
+
+  const currency = form.watch("currency") || "ARS";
+  const prevCurrencyRef = useRef(currency);
+  useEffect(() => {
+    if (prevCurrencyRef.current !== currency) {
+      const rent = form.getValues("rent_amount");
+      const deposit = form.getValues("deposit_amount");
+      const commission = form.getValues("commission_amount");
+
+      if (rent) {
+        form.setValue("rent_amount", formatCurrencyInput(rent.replace(/\D/g, ""), currency));
+      }
+      if (deposit) {
+        form.setValue("deposit_amount", formatCurrencyInput(deposit.replace(/\D/g, ""), currency));
+      }
+      if (commission) {
+        form.setValue("commission_amount", formatCurrencyInput(commission.replace(/\D/g, ""), currency));
+      }
+      prevCurrencyRef.current = currency;
+    }
+  }, [currency, form]);
 
   function toggleGuarantor(id: string) {
     setGuarantorIds((prev) =>
@@ -273,10 +301,13 @@ export function ContractFormDialog({
                       <Input
                         id="rent-input"
                         aria-label="Alquiler"
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        {...field}
+                        type="text"
+                        placeholder={currency === "ARS" ? "$ 0" : "US$ 0"}
+                        value={field.value}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          field.onChange(formatCurrencyInput(raw, currency));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -318,10 +349,13 @@ export function ContractFormDialog({
                       <Input
                         id="deposit-input"
                         aria-label="Depósito"
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        {...field}
+                        type="text"
+                        placeholder={currency === "ARS" ? "$ 0" : "US$ 0"}
+                        value={field.value}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          field.onChange(formatCurrencyInput(raw, currency));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -338,10 +372,13 @@ export function ContractFormDialog({
                       <Input
                         id="commission-input"
                         aria-label="Comisión"
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        {...field}
+                        type="text"
+                        placeholder={currency === "ARS" ? "$ 0" : "US$ 0"}
+                        value={field.value}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          field.onChange(formatCurrencyInput(raw, currency));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -439,6 +476,71 @@ export function ContractFormDialog({
                         <SelectItem value="expired">Vencido</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Datos del contrato (Phase C) */}
+            <div className="flex flex-col gap-3">
+              <p className="text-sm font-medium">Datos del contrato</p>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control as any}
+                  name="contract_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="contract-type-trigger">Tipo de contrato</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger id="contract-type-trigger" aria-label="Tipo de contrato">
+                            <SelectValue placeholder="Habitacional" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="habitacional">Habitacional</SelectItem>
+                          <SelectItem value="comercial">Comercial</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control as any}
+                  name="signing_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel htmlFor="signing-date-input">Fecha de firma</FormLabel>
+                      <FormControl>
+                        <Input
+                          id="signing-date-input"
+                          aria-label="Fecha de firma"
+                          type="date"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control as any}
+                name="signing_city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel htmlFor="signing-city-input">Ciudad de firma</FormLabel>
+                    <FormControl>
+                      <Input
+                        id="signing-city-input"
+                        aria-label="Ciudad de firma"
+                        type="text"
+                        placeholder="Ciudad Autónoma de Buenos Aires"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

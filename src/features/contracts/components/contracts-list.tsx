@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, CalendarPlus } from "lucide-react";
+import { Plus, Pencil, Trash2, CalendarPlus, Eye } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { useContracts } from "@/features/contracts/hooks/use-contracts";
 import type { ContractWithRelations } from "@/features/contracts/hooks/use-contracts";
@@ -10,6 +10,9 @@ import { ContractFormDialog } from "./contract-form-dialog";
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
 import { CreateContractDialog } from "./create-contract-dialog";
+import { ContractPdfActions } from "./contract-pdf-actions";
+import { ContractStatusBadge } from "./contract-status-badge";
+import { ContractLocacionButton } from "./contract-locacion-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +25,13 @@ import {
   AlertDialogTrigger,
 } from "@/shared/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/shared/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -30,7 +40,6 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import {
-  CONTRACT_STATUS_LABELS,
   ADJUSTMENT_INDEX_LABELS,
   formatMoney,
   formatDate,
@@ -41,6 +50,9 @@ export function ContractsList() {
   const query = useSearchStore((s) => s.query);
   const [createOpen, setCreateOpen] = useState(false);
   const [editContract, setEditContract] = useState<ContractWithRelations | null>(
+    null,
+  );
+  const [viewContract, setViewContract] = useState<ContractWithRelations | null>(
     null,
   );
   const deleteContract = useDeleteContract();
@@ -137,10 +149,21 @@ export function ContractsList() {
                     / {contract.adjustment_period_months}m
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={contract.status} />
+                    <ContractStatusBadge status={contract.status} />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <ContractLocacionButton contract={contract} />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Ver PDF"
+                        title="Ver PDF"
+                        onClick={() => setViewContract(contract)}
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="sr-only">Ver PDF</span>
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -202,6 +225,26 @@ export function ContractsList() {
           isPending={updateContract.isPending}
         />
       )}
+
+      {/* PDF viewer dialog */}
+      <Dialog
+        open={!!viewContract}
+        onOpenChange={(open) => {
+          if (!open) setViewContract(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Contrato</DialogTitle>
+            <DialogDescription>
+              {viewContract?.tenant?.name ?? "—"} ·{" "}
+              {viewContract?.property?.address ?? "—"} ·{" "}
+              <ContractStatusBadge status={viewContract?.status ?? ""} />
+            </DialogDescription>
+          </DialogHeader>
+          {viewContract && <ContractPdfActions contract={viewContract} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -233,25 +276,3 @@ function DeleteAction({ onConfirm }: { onConfirm: () => void }) {
   );
 }
 
-// ── Status badge ──────────────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: string }) {
-  const label = CONTRACT_STATUS_LABELS[status] ?? status;
-
-  const colorMap: Record<string, string> = {
-    draft: "bg-slate-100 text-slate-700",
-    active: "bg-green-100 text-green-800",
-    terminated: "bg-red-100 text-red-700",
-    expired: "bg-yellow-100 text-yellow-800",
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center rounded-pill px-2 py-0.5 text-xs font-medium ${
-        colorMap[status] ?? "bg-mist text-slate2"
-      }`}
-    >
-      {label}
-    </span>
-  );
-}

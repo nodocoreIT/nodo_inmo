@@ -8,6 +8,7 @@ import {
   FileText,
   CreditCard,
   Wallet,
+  FolderOpen,
   LogOut,
   Settings,
   Menu,
@@ -47,6 +48,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin/contracts", label: "Contratos", icon: FileText },
   { to: "/admin/payments", label: "Pagos", icon: CreditCard },
   { to: "/admin/caja", label: "Caja", icon: Wallet, adminOnly: true },
+  { to: "/admin/documentos", label: "Documentos", icon: FolderOpen },
 ];
 
 // Top-bar search placeholder per searchable route.
@@ -55,6 +57,7 @@ const SEARCH_PLACEHOLDERS: Record<string, string> = {
   "/admin/owners": "Buscar propietarios…",
   "/admin/tenants": "Buscar inquilinos…",
   "/admin/contracts": "Buscar contratos…",
+  "/admin/documentos": "Buscar por inquilino, propiedad…",
 };
 
 // Header title per route (shown in the top bar, nodo-core style).
@@ -66,6 +69,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/admin/contracts": "Contratos",
   "/admin/payments": "Pagos",
   "/admin/caja": "Caja",
+  "/admin/documentos": "Documentos",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

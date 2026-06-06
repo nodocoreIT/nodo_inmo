@@ -195,6 +195,7 @@ export type Database = {
           adjustment_index: string
           adjustment_period_months: number
           commission_amount: number | null
+          contract_type: string
           created_at: string
           currency: string
           deposit_amount: number | null
@@ -206,6 +207,8 @@ export type Database = {
           org_id: string
           property_id: string
           rent_amount: number
+          signing_city: string | null
+          signing_date: string | null
           start_date: string
           status: string
           tenant_id: string
@@ -215,6 +218,7 @@ export type Database = {
           adjustment_index?: string
           adjustment_period_months?: number
           commission_amount?: number | null
+          contract_type?: string
           created_at?: string
           currency?: string
           deposit_amount?: number | null
@@ -226,6 +230,8 @@ export type Database = {
           org_id: string
           property_id: string
           rent_amount: number
+          signing_city?: string | null
+          signing_date?: string | null
           start_date: string
           status?: string
           tenant_id: string
@@ -235,6 +241,7 @@ export type Database = {
           adjustment_index?: string
           adjustment_period_months?: number
           commission_amount?: number | null
+          contract_type?: string
           created_at?: string
           currency?: string
           deposit_amount?: number | null
@@ -246,6 +253,8 @@ export type Database = {
           org_id?: string
           property_id?: string
           rent_amount?: number
+          signing_city?: string | null
+          signing_date?: string | null
           start_date?: string
           status?: string
           tenant_id?: string
@@ -264,6 +273,60 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          contract_id: string | null
+          document_type: string
+          file_path: string
+          id: string
+          label: string
+          notes: string | null
+          org_id: string
+          property_id: string | null
+          updated_at: string
+          uploaded_at: string
+        }
+        Insert: {
+          contract_id?: string | null
+          document_type?: string
+          file_path: string
+          id?: string
+          label: string
+          notes?: string | null
+          org_id: string
+          property_id?: string | null
+          updated_at?: string
+          uploaded_at?: string
+        }
+        Update: {
+          contract_id?: string | null
+          document_type?: string
+          file_path?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          org_id?: string
+          property_id?: string | null
+          updated_at?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]

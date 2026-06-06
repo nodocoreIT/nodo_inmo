@@ -7,6 +7,7 @@ import { InquilinosList } from "@/features/contacts/components/inquilinos-list";
 import { ContractsList } from "@/features/contracts/components/contracts-list";
 import { PaymentsList } from "@/features/payments/components/payments-list";
 import { CajaPage } from "@/features/caja/components/caja-page";
+import { DocumentosPage } from "@/features/documentos/components/documentos-page";
 
 export function AdminPortalPage() {
   return (
@@ -21,6 +22,7 @@ export function AdminPortalPage() {
         <Route path="contracts" element={<ContractsList />} />
         <Route path="payments" element={<PaymentsList />} />
         <Route path="caja" element={<CajaPage />} />
+        <Route path="documentos" element={<DocumentosPage />} />
       </Route>
     </Routes>
   );

@@ -3,6 +3,19 @@
  * DB values stay in English; these are presentation-only.
  */
 
+export const CONTRACT_TYPE_LABELS: Record<string, string> = {
+  habitacional: "Habitacional",
+  comercial: "Comercial",
+};
+
+export const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  apartment: "Departamento",
+  house: "Casa",
+  commercial: "Local comercial",
+  land: "Terreno",
+  other: "Otro",
+};
+
 export const CONTRACT_STATUS_LABELS: Record<string, string> = {
   draft: "Borrador",
   active: "Activo",
