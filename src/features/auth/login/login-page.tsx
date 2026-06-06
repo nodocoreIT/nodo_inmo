@@ -10,11 +10,7 @@ import { useAuth } from "@/app/auth/use-auth";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/shared/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/shared/components/ui/card";
 import { BrandMark } from "@/shared/components/brand-mark";
 
 export function LoginPage() {
@@ -77,7 +73,7 @@ export function LoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Ingrese su Contraseña"
                 required
               />
             </div>
@@ -88,11 +84,7 @@ export function LoginPage() {
               </p>
             )}
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Cargando…" : "Iniciar sesión"}
             </Button>
           </form>

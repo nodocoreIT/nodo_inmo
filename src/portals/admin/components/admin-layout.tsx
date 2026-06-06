@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
-  Building2,
+  Home,
   Users,
+  UserCheck,
   FileText,
   CreditCard,
   Wallet,
   LogOut,
   Settings,
+  Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { BrandMark } from "@/shared/components/brand-mark";
@@ -24,6 +27,7 @@ import { AgencyProfileForm } from "@/features/agency-profile/components/agency-p
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { useAuth } from "@/app/auth/use-auth";
 import { cn } from "@/shared/lib/utils";
+import { SettingsDialog } from "./settings-dialog";
 
 // ── Nav item definition ───────────────────────────────────────────────────────
 
@@ -35,8 +39,8 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: "/admin/properties", label: "Propiedades", icon: Building2 },
-  { to: "/admin/owners", label: "Propietarios", icon: Users },
+  { to: "/admin/properties", label: "Propiedades", icon: Home },
+  { to: "/admin/owners", label: "Propietarios", icon: UserCheck },
   { to: "/admin/tenants", label: "Inquilinos", icon: Users },
   { to: "/admin/contracts", label: "Contratos", icon: FileText },
   { to: "/admin/payments", label: "Pagos", icon: CreditCard },
@@ -79,6 +83,19 @@ export function AdminLayout() {
   const resetSearch = useSearchStore((s) => s.reset);
   const [profileOpen, setProfileOpen] = useState(false);
   const [agencyProfileOpen, setAgencyProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const media = window.matchMedia("(max-width: 640px)");
+    setIsMobile(media.matches);
+    const listener = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, []);
 
   // Clear the search query when switching areas so they don't inherit it.
   useEffect(() => {
@@ -89,7 +106,9 @@ export function AdminLayout() {
     (item) => !item.adminOnly || role === "admin",
   );
 
-  const placeholder = SEARCH_PLACEHOLDERS[pathname];
+  const placeholder = SEARCH_PLACEHOLDERS[pathname]
+    ? (isMobile ? "Buscar..." : SEARCH_PLACEHOLDERS[pathname])
+    : undefined;
   const title = ROUTE_TITLES[pathname] ?? "Gestión";
   const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "";
   const email = user?.email ?? "";
@@ -97,11 +116,32 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-paper]">
-      {/* ── Sidebar ── */}
-      <aside className="flex w-60 flex-shrink-0 flex-col border-r border-border bg-navy">
+      {/* Mobile Sidebar/Drawer Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 transition-opacity md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* ── Sidebar (Responsive: Sidebar on Desktop, Drawer on Mobile) ── */}
+      <aside
+        className={cn(
+          "fixed bottom-0 top-0 left-0 z-50 flex w-60 flex-shrink-0 flex-col bg-[var(--color-sidebar-bg)] transition-transform duration-300 ease-in-out border-r border-border md:static md:z-auto md:translate-x-0 md:flex",
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         {/* Brand mark */}
-        <div className="flex h-16 items-center px-5">
+        <div className="flex h-16 items-center justify-between px-5">
           <BrandMark onDark iconClassName="h-6 w-6" />
+          <button
+            type="button"
+            className="md:hidden text-[var(--color-sidebar-text)] hover:text-white"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Cerrar menú"
+          >
+            <X className="h-6 w-6" />
+          </button>
         </div>
 
         {/* Nav */}
@@ -113,12 +153,13 @@ export function AdminLayout() {
             <NavLink
               key={to}
               to={to}
+              onClick={() => setMobileMenuOpen(false)}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-brand text-white"
-                    : "text-slate2-300 hover:bg-navy-700 hover:text-white",
+                    ? "bg-brand text-[var(--color-primary-foreground)]"
+                    : "text-[var(--color-sidebar-text)] hover:bg-brand/10 hover:text-brand",
                 )
               }
             >
@@ -126,10 +167,24 @@ export function AdminLayout() {
               {label}
             </NavLink>
           ))}
+
+          {/* Configuración sidebar option for admins */}
+          {role === "admin" && (
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setSettingsOpen(true);
+              }}
+              className="flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors text-[var(--color-sidebar-text)] hover:bg-brand/10 hover:text-brand mt-auto w-full text-left"
+            >
+              <Settings className="h-4 w-4 flex-shrink-0" />
+              Configuración
+            </button>
+          )}
         </nav>
 
         {/* User block pinned to the bottom */}
-        <div className="border-t border-navy-700 p-3">
+        <div className="border-t border-[var(--color-sidebar-border)] p-3">
           <div className="flex items-center gap-3 px-1 py-1">
             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
               {initials(displayName)}
@@ -139,36 +194,26 @@ export function AdminLayout() {
                 {displayName}
               </p>
               {fullName && (
-                <p className="truncate text-xs text-slate2-300">{email}</p>
+                <p className="truncate text-xs text-[var(--color-sidebar-text)]">{email}</p>
               )}
             </div>
             <button
               type="button"
               aria-label="Editar perfil"
-              onClick={() => setProfileOpen(true)}
-              className="flex-shrink-0 rounded-md p-1.5 text-slate2-300 transition-colors hover:bg-navy-700 hover:text-white"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setProfileOpen(true);
+              }}
+              className="flex-shrink-0 rounded-md p-1.5 text-[var(--color-sidebar-text)] transition-colors hover:text-brand"
             >
               <Settings className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Agency profile settings — admin only */}
-          {role === "admin" && (
-            <button
-              type="button"
-              aria-label="Datos de la agencia"
-              onClick={() => setAgencyProfileOpen(true)}
-              className="mt-1 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-slate2-300 transition-colors hover:bg-navy-700 hover:text-white"
-            >
-              <Settings className="h-3 w-3" />
-              Datos de la agencia
-            </button>
-          )}
-
           <Button
             variant="outline"
             onClick={() => signOut()}
-            className="mt-2 w-full justify-center gap-2 border-navy-700 bg-transparent text-slate2-300 hover:bg-navy-700 hover:text-white"
+            className="mt-2 w-full justify-center gap-2 border-[var(--color-sidebar-border)] bg-transparent text-[var(--color-sidebar-text)] hover:bg-brand/10 hover:text-brand hover:border-brand"
           >
             <LogOut className="h-4 w-4" />
             Cerrar sesión
@@ -179,14 +224,28 @@ export function AdminLayout() {
       {/* ── Main area ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar — breadcrumb + section title (left), search (right) */}
-        <header className="flex min-h-26 items-center justify-between gap-4 border-b border-border bg-[#EEF3F8] px-6 py-3 shadow-sm">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate2">
-              Nodo Inmo · Gestión
-            </p>
-            <h1 className="truncate text-xl font-bold text-navy">{title}</h1>
+        <header className="flex min-h-20 items-center justify-between gap-4 border-b border-border bg-[#EEF3F8] px-4 sm:px-6 py-3 shadow-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              className="block md:hidden text-navy hover:text-brand"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Abrir menú"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate2">
+                Nodo Inmo · Gestión
+              </p>
+              <h1 className="truncate text-lg sm:text-xl font-bold text-navy">{title}</h1>
+            </div>
           </div>
-          {placeholder && <SearchInput placeholder={placeholder} />}
+          {placeholder && (
+            <div className="max-w-[150px] sm:max-w-xs md:max-w-md w-full flex-shrink">
+              <SearchInput placeholder={placeholder} />
+            </div>
+          )}
         </header>
 
         {/* Content area */}
@@ -215,6 +274,9 @@ export function AdminLayout() {
           <AgencyProfileForm onSuccess={() => setAgencyProfileOpen(false)} />
         </DialogContent>
       </Dialog>
+
+      {/* Global Config Settings Dialog */}
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }
