@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
+  LayoutDashboard,
   Home,
   Users,
   UserCheck,
@@ -39,6 +40,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { to: "/admin/dashboard", label: "Inicio", icon: LayoutDashboard },
   { to: "/admin/properties", label: "Propiedades", icon: Home },
   { to: "/admin/owners", label: "Propietarios", icon: UserCheck },
   { to: "/admin/tenants", label: "Inquilinos", icon: Users },
@@ -57,6 +59,7 @@ const SEARCH_PLACEHOLDERS: Record<string, string> = {
 
 // Header title per route (shown in the top bar, nodo-core style).
 const ROUTE_TITLES: Record<string, string> = {
+  "/admin/dashboard": "Inicio",
   "/admin/properties": "Propiedades",
   "/admin/owners": "Propietarios",
   "/admin/tenants": "Inquilinos",

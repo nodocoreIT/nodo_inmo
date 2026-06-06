@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AdminLayout } from "./components/admin-layout";
+import { DashboardPage } from "@/features/dashboard/components/dashboard-page";
 import { PropertiesList } from "@/features/properties/components/properties-list";
 import { PropietariosList } from "@/features/contacts/components/propietarios-list";
 import { InquilinosList } from "@/features/contacts/components/inquilinos-list";
@@ -11,8 +12,9 @@ export function AdminPortalPage() {
   return (
     <Routes>
       <Route element={<AdminLayout />}>
-        {/* Default → properties */}
-        <Route index element={<Navigate to="properties" replace />} />
+        {/* Default → dashboard */}
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         <Route path="properties" element={<PropertiesList />} />
         <Route path="owners" element={<PropietariosList />} />
         <Route path="tenants" element={<InquilinosList />} />
