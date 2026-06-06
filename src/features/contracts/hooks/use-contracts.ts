@@ -48,7 +48,7 @@ export function useContracts() {
           "*, " +
           "property:properties!contracts_property_id_fkey(" +
             "address, property_type, rooms, total_sqm, inventory_description, " +
-            "owner:contacts!properties_owner_id_fkey(name, dni, email, phone, address)" +
+            "owner:contacts!properties_owner_contact_id_fkey(name, dni, email, phone, address)" +
           "), " +
           "tenant:contacts!contracts_tenant_id_fkey(name, dni, address), " +
           "guarantors:contract_guarantors(guarantor_id, guarantor:contacts!contract_guarantors_guarantor_id_fkey(name, dni, address))",

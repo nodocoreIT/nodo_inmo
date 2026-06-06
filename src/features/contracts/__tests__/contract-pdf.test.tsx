@@ -43,6 +43,18 @@ vi.mock(
   }),
 );
 
+// Stub ContractPdfViewer — replaces the dialog content in ContractsList tests
+vi.mock(
+  "@/features/contracts/components/contract-pdf-viewer",
+  () => ({
+    ContractPdfViewer: ({ contract }: { contract: { id: string } }) => (
+      <div data-testid="contract-pdf-viewer" data-contract-id={contract.id}>
+        <button>Descargar</button>
+      </div>
+    ),
+  }),
+);
+
 // Stub dialogs/hooks not under test in list
 vi.mock("@/features/contracts/hooks/use-delete-contract", () => ({
   useDeleteContract: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -337,7 +349,7 @@ describe("ContractsList — Eye button + Dialog (Phase A)", () => {
     });
   });
 
-  it("renders ContractPdfActions inside the dialog when open", async () => {
+  it("renders ContractPdfViewer inside the dialog when open", async () => {
     mockUseContracts.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -348,7 +360,7 @@ describe("ContractsList — Eye button + Dialog (Phase A)", () => {
     await userEvent.click(screen.getByRole("button", { name: /ver pdf/i }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("contract-pdf-actions")).toBeInTheDocument();
+      expect(screen.getByTestId("contract-pdf-viewer")).toBeInTheDocument();
     });
   });
 

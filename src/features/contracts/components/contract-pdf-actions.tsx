@@ -83,7 +83,7 @@ export function buildContractPdfData(
 
 // ─── Blob builder (dynamic imports — bundle isolation) ────────────────────────
 
-async function buildBlob(data: ContractPdfData): Promise<Blob> {
+export async function buildBlob(data: ContractPdfData): Promise<Blob> {
   const [{ pdf }, { ContractPdfDocument }] = await Promise.all([
     import("@react-pdf/renderer"),
     import("./contract-pdf-document"),
@@ -94,7 +94,7 @@ async function buildBlob(data: ContractPdfData): Promise<Blob> {
   ).toBlob();
 }
 
-function buildFilename(contract: ContractWithRelations): string {
+export function buildFilename(contract: ContractWithRelations): string {
   const tenantSlug = slugifyOwnerName(contract.tenant?.name ?? "inquilino");
   const propertySlug = slugifyOwnerName(
     contract.property?.address ?? "propiedad",

@@ -9,6 +9,8 @@ import { useUpdateProperty } from "@/features/properties/hooks/use-update-proper
 import { useDeleteProperty } from "@/features/properties/hooks/use-delete-property";
 import { CreatePropertyDialog } from "./create-property-dialog";
 import { PropertyFormDialog } from "./property-form-dialog";
+import type { PropertyFormValues } from "./property-form-dialog";
+import { VoicePropertyButton } from "./voice-property-button";
 import { RegisterExpenseButton } from "@/features/property-expenses/components/register-expense-button";
 import {
   AlertDialog,
@@ -40,7 +42,14 @@ export function PropertiesList() {
   const { data, isLoading, isError } = useProperties();
   const query = useSearchStore((s) => s.query);
   const [createOpen, setCreateOpen] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceDefaults, setVoiceDefaults] = useState<Partial<PropertyFormValues> | null>(null);
   const [editProperty, setEditProperty] = useState<PropertyRow | null>(null);
+
+  const handleVoiceExtracted = (values: Partial<PropertyFormValues>) => {
+    setVoiceDefaults(values);
+    setVoiceOpen(true);
+  };
 
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
@@ -56,7 +65,8 @@ export function PropertiesList() {
   return (
     <div className="flex flex-col gap-6">
       {/* Action row */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <VoicePropertyButton onExtracted={handleVoiceExtracted} />
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           Nueva propiedad
@@ -159,6 +169,22 @@ export function PropertiesList() {
         onOpenChange={setCreateOpen}
         onSuccess={() => setCreateOpen(false)}
       />
+
+      {/* Voice-dictated create dialog */}
+      {voiceDefaults !== null && (
+        <CreatePropertyDialog
+          open={voiceOpen}
+          onOpenChange={(open) => {
+            setVoiceOpen(open);
+            if (!open) setVoiceDefaults(null);
+          }}
+          defaultValues={voiceDefaults}
+          onSuccess={() => {
+            setVoiceOpen(false);
+            setVoiceDefaults(null);
+          }}
+        />
+      )}
 
       {/* Edit dialog */}
       {editProperty && (

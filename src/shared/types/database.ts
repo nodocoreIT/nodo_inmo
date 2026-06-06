@@ -489,16 +489,25 @@ export type Database = {
       properties: {
         Row: {
           address: string
+          bathrooms: number | null
           commission_rate: number | null
           created_at: string
           currency: string
           description: string | null
+          has_bbq: boolean
+          has_elevator: boolean
+          has_garage: boolean
+          has_garden: boolean
+          has_laundry: boolean
+          has_parking: boolean
+          has_pool: boolean
           id: string
           inventory_description: string | null
           main_photo: string | null
           operation: string
           org_id: string
           owner_id: string | null
+          pets_allowed: boolean
           property_type: string
           rooms: number | null
           sale_price: number | null
@@ -508,16 +517,25 @@ export type Database = {
         }
         Insert: {
           address: string
+          bathrooms?: number | null
           commission_rate?: number | null
           created_at?: string
           currency?: string
           description?: string | null
+          has_bbq?: boolean
+          has_elevator?: boolean
+          has_garage?: boolean
+          has_garden?: boolean
+          has_laundry?: boolean
+          has_parking?: boolean
+          has_pool?: boolean
           id?: string
           inventory_description?: string | null
           main_photo?: string | null
           operation: string
           org_id: string
           owner_id?: string | null
+          pets_allowed?: boolean
           property_type: string
           rooms?: number | null
           sale_price?: number | null
@@ -527,16 +545,25 @@ export type Database = {
         }
         Update: {
           address?: string
+          bathrooms?: number | null
           commission_rate?: number | null
           created_at?: string
           currency?: string
           description?: string | null
+          has_bbq?: boolean
+          has_elevator?: boolean
+          has_garage?: boolean
+          has_garden?: boolean
+          has_laundry?: boolean
+          has_parking?: boolean
+          has_pool?: boolean
           id?: string
           inventory_description?: string | null
           main_photo?: string | null
           operation?: string
           org_id?: string
           owner_id?: string | null
+          pets_allowed?: boolean
           property_type?: string
           rooms?: number | null
           sale_price?: number | null
@@ -610,6 +637,69 @@ export type Database = {
           },
           {
             foreignKeyName: "property_expenses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assigned_to: string | null
+          category: string
+          contact_id: string | null
+          created_at: string
+          description: string | null
+          due_date: string
+          id: string
+          org_id: string
+          priority: string
+          property_id: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category?: string
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          org_id: string
+          priority?: string
+          property_id?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          org_id?: string
+          priority?: string
+          property_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"

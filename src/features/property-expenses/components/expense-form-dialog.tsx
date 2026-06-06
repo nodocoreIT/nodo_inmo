@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,6 +32,7 @@ import {
 } from "@/shared/components/ui/select";
 import { useCreateExpense } from "@/features/property-expenses/hooks/use-create-expense";
 import { useUploadReceipt } from "@/features/property-expenses/hooks/use-upload-receipt";
+import { formatCurrencyInput, parseCurrencyInput } from "@/shared/lib/format-money";
 
 // ── Zod schema ────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,10 @@ const schema = z.object({
   amount: z
     .string()
     .min(1, "Monto requerido")
-    .refine((v) => Number(v) > 0, "El monto debe ser mayor a cero"),
+    .refine((v) => {
+      const clean = v.replace(/\D/g, "");
+      return Number(clean) > 0;
+    }, "El monto debe ser mayor a cero"),
   currency: z.enum(["ARS", "USD"]),
   expense_date: z.string().min(1, "Fecha requerida"),
   description: z.string().min(1, "Descripción requerida"),
@@ -91,6 +95,18 @@ export function ExpenseFormDialog({
     },
   });
 
+  const currency = form.watch("currency") || "ARS";
+  const prevCurrencyRef = useRef(currency);
+  useEffect(() => {
+    if (prevCurrencyRef.current !== currency) {
+      const amount = form.getValues("amount");
+      if (amount) {
+        form.setValue("amount", formatCurrencyInput(amount.replace(/\D/g, ""), currency));
+      }
+      prevCurrencyRef.current = currency;
+    }
+  }, [currency, form]);
+
   async function handleSubmit(values: FormValues) {
     setErrorMessage(null);
 
@@ -112,7 +128,7 @@ export function ExpenseFormDialog({
       await createExpense({
         property_id: propertyId,
         type: values.type,
-        amount: Number(values.amount),
+        amount: parseCurrencyInput(values.amount) || 0,
         currency: values.currency,
         expense_date: values.expense_date,
         description: values.description,
@@ -224,10 +240,13 @@ export function ExpenseFormDialog({
                       <Input
                         id="expense-amount-input"
                         aria-label="Monto"
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...field}
+                        type="text"
+                        placeholder={currency === "ARS" ? "$ 0" : "US$ 0"}
+                        value={field.value}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          field.onChange(formatCurrencyInput(raw, currency));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />

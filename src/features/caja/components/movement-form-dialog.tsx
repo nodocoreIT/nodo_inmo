@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useForm } from "react-hook-form";
+import { formatCurrencyInput, parseCurrencyInput } from "@/shared/lib/format-money";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
@@ -61,7 +62,7 @@ export function MovementFormDialog({
   async function handleSubmit(values: FormValues) {
     await mutateAsync({
       type: values.type,
-      amount: Number(values.amount),
+      amount: parseCurrencyInput(values.amount) || 0,
       concept: values.concept,
       date: values.date,
     });
@@ -117,10 +118,13 @@ export function MovementFormDialog({
                       <Input
                         id="amount-input"
                         aria-label="Monto"
-                        type="number"
-                        min={0}
-                        placeholder="0"
-                        {...field}
+                        type="text"
+                        placeholder="$ 0"
+                        value={field.value}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          field.onChange(formatCurrencyInput(raw, "ARS"));
+                        }}
                       />
                     </FormControl>
                     <FormMessage />

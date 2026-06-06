@@ -10,7 +10,7 @@ import { ContractFormDialog } from "./contract-form-dialog";
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
 import { CreateContractDialog } from "./create-contract-dialog";
-import { ContractPdfActions } from "./contract-pdf-actions";
+import { ContractPdfViewer } from "./contract-pdf-viewer";
 import { ContractStatusBadge } from "./contract-status-badge";
 import { ContractLocacionButton } from "./contract-locacion-button";
 import {
@@ -233,7 +233,7 @@ export function ContractsList() {
           if (!open) setViewContract(null);
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Contrato</DialogTitle>
             <DialogDescription>
@@ -242,7 +242,7 @@ export function ContractsList() {
               <ContractStatusBadge status={viewContract?.status ?? ""} />
             </DialogDescription>
           </DialogHeader>
-          {viewContract && <ContractPdfActions contract={viewContract} />}
+          {viewContract && <ContractPdfViewer contract={viewContract} />}
         </DialogContent>
       </Dialog>
     </div>

@@ -6,6 +6,7 @@
  */
 import { render, screen, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { MemoryRouter } from "react-router-dom";
 
 // ── DashboardPage mock (must be at module scope) ──────────────────────────────
 
@@ -145,6 +146,10 @@ describe("DashboardStatCard", () => {
 
 // ── DashboardPage tests (T4) ──────────────────────────────────────────────────
 
+function renderWithRouter(ui: React.ReactElement) {
+  return render(ui, { wrapper: MemoryRouter });
+}
+
 describe("DashboardPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -158,7 +163,7 @@ describe("DashboardPage", () => {
   it("renders a loading spinner when loading=true", () => {
     mockUseDashboardMetrics.mockReturnValue({ loading: true, error: null });
 
-    render(<DashboardPage />);
+    renderWithRouter(<DashboardPage />);
 
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.queryByText("Pagos vencidos")).not.toBeInTheDocument();
@@ -171,7 +176,7 @@ describe("DashboardPage", () => {
       error: new Error("fail"),
     });
 
-    render(<DashboardPage />);
+    renderWithRouter(<DashboardPage />);
 
     const alert = screen.getByRole("alert");
     expect(alert).toBeInTheDocument();
@@ -185,7 +190,7 @@ describe("DashboardPage", () => {
   it("renders all four card labels in the resolved state", () => {
     mockUseDashboardMetrics.mockReturnValue(resolvedMetrics());
 
-    render(<DashboardPage />);
+    renderWithRouter(<DashboardPage />);
 
     expect(screen.getByText("Pagos vencidos")).toBeInTheDocument();
     expect(screen.getByText("Liquidaciones pendientes")).toBeInTheDocument();
@@ -197,7 +202,7 @@ describe("DashboardPage", () => {
   it("renders Pagos vencidos before Contratos activos", () => {
     mockUseDashboardMetrics.mockReturnValue(resolvedMetrics());
 
-    render(<DashboardPage />);
+    renderWithRouter(<DashboardPage />);
 
     const labels = screen
       .getAllByText(/Pagos vencidos|Contratos activos/)
@@ -217,7 +222,7 @@ describe("DashboardPage", () => {
       }),
     );
 
-    render(<DashboardPage />);
+    renderWithRouter(<DashboardPage />);
 
     const arsLine = screen.getByText(/\$\s*1[.,]000/);
     const usdLine = screen.getByText(/US\$\s*50/);
@@ -230,7 +235,7 @@ describe("DashboardPage", () => {
   it("renders known tenant names from overduePayments.items", () => {
     mockUseDashboardMetrics.mockReturnValue(resolvedMetrics());
 
-    render(<DashboardPage />);
+    renderWithRouter(<DashboardPage />);
 
     expect(screen.getByText("Juan Pérez")).toBeInTheDocument();
     expect(screen.getByText("Ana García")).toBeInTheDocument();
@@ -257,7 +262,7 @@ describe("DashboardPage", () => {
       }),
     );
 
-    render(<DashboardPage />);
+    renderWithRouter(<DashboardPage />);
 
     expect(screen.getByText("y 2 más")).toBeInTheDocument();
   });
@@ -274,7 +279,7 @@ describe("DashboardPage", () => {
       }),
     );
 
-    render(<DashboardPage />);
+    renderWithRouter(<DashboardPage />);
 
     expect(screen.getByText("Sin pagos vencidos")).toBeInTheDocument();
   });
@@ -283,7 +288,7 @@ describe("DashboardPage", () => {
   it("never calls usePayments, useOwnerSettlements, or useContracts directly", () => {
     mockUseDashboardMetrics.mockReturnValue(resolvedMetrics());
 
-    render(<DashboardPage />);
+    renderWithRouter(<DashboardPage />);
 
     expect(mockUsePayments).not.toHaveBeenCalled();
     expect(mockUseOwnerSettlements).not.toHaveBeenCalled();

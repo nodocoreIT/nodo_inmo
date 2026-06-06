@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { Loader2, Plus, Trash2, Mail, UserPlus, Image as ImageIcon } from "lucide-react";
+import { Loader2, Plus, Trash2, Mail, UserPlus, Image as ImageIcon, BrainCircuit, CheckCircle2, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { useAiSettings } from "@/shared/hooks/use-ai-settings";
 import {
   Dialog,
   DialogContent,
@@ -109,8 +110,18 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<
-    "company" | "customization" | "users"
+    "company" | "customization" | "users" | "ai"
   >("company");
+  const { aiSettings, setAiSettings } = useAiSettings();
+  const [apiKeyInput, setApiKeyInput] = useState(aiSettings.geminiApiKey);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [aiKeySaved, setAiKeySaved] = useState(false);
+
+  const handleSaveApiKey = () => {
+    setAiSettings({ geminiApiKey: apiKeyInput.trim() });
+    setAiKeySaved(true);
+    setTimeout(() => setAiKeySaved(false), 2500);
+  };
   const { settings, setSettings, resetSettings } = useThemeSettings();
 
   // Dynamic Bank Accounts state
@@ -243,6 +254,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               }`}
             >
               Personalización del Panel
+            </button>
+            <button
+              onClick={() => setActiveTab("ai")}
+              className={`pb-3 text-sm font-semibold border-b-2 transition-all flex-shrink-0 ${
+                activeTab === "ai"
+                  ? "border-brand text-brand"
+                  : "border-transparent text-slate2 hover:text-navy"
+              }`}
+            >
+              Integraciones / IA
             </button>
           </div>
         </div>
@@ -733,6 +754,115 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: Integraciones / IA */}
+          {activeTab === "ai" && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-base font-bold text-navy mb-1 flex items-center gap-2">
+                  <BrainCircuit className="h-5 w-5 text-brand" />
+                  Inteligencia Artificial
+                </h3>
+                <p className="text-xs text-slate2">
+                  Configurá tu API key personal de Google Gemini para habilitar
+                  funciones de IA como el dictado de propiedades por voz.
+                  La clave se guarda localmente en tu navegador y nunca se
+                  envía a ningún servidor externo de Nodo.
+                </p>
+              </div>
+
+              <div className="border-t border-border pt-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-bold text-navy">Gemini API Key</Label>
+                  {aiSettings.geminiApiKey ? (
+                    <span className="flex items-center gap-1 text-xs text-green-600 font-semibold">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Configurada
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs text-amber-600 font-semibold">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      Sin configurar
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <Input
+                    id="gemini-api-key"
+                    type={showApiKey ? "text" : "password"}
+                    placeholder="AIza..."
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    className="pr-10 font-mono text-sm"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate2 hover:text-navy transition-colors"
+                    aria-label={showApiKey ? "Ocultar clave" : "Mostrar clave"}
+                  >
+                    {showApiKey ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+
+                <p className="text-[11px] text-slate2 leading-relaxed">
+                  Obtenés tu clave gratis en{" "}
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand underline hover:no-underline font-semibold"
+                  >
+                    Google AI Studio
+                  </a>
+                  . El tier gratuito soporta hasta 1.500 requests/día con
+                  Gemini 1.5 Flash.
+                </p>
+
+                <Button
+                  onClick={handleSaveApiKey}
+                  size="sm"
+                  disabled={apiKeyInput === aiSettings.geminiApiKey}
+                  className="gap-2"
+                >
+                  {aiKeySaved ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Guardada
+                    </>
+                  ) : (
+                    "Guardar API key"
+                  )}
+                </Button>
+              </div>
+
+              <div className="border-t border-border pt-6">
+                <h4 className="text-sm font-bold text-navy mb-2">¿Para qué se usa?</h4>
+                <ul className="space-y-2 text-xs text-slate2">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-brand font-bold">🎤</span>
+                    <span>
+                      <strong className="text-navy">Dictado de propiedades:</strong> Hablás en lenguaje natural
+                      y el sistema extrae automáticamente dirección, tipo, precio, moneda y ambientes.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-brand font-bold">🔒</span>
+                    <span>
+                      La clave <strong className="text-navy">nunca sale de tu navegador</strong>.
+                      Nodo no la almacena ni la transmite.
+                    </span>
+                  </li>
+                </ul>
               </div>
             </div>
           )}
