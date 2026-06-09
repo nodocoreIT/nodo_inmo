@@ -110,14 +110,16 @@ vi.mock("@/features/agency-profile/hooks/use-logo-url", () => ({
   useLogoUrl: () => mockUseLogoUrl(),
 }));
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import { MemoryRouter } from "react-router-dom";
 
 function makeWrapper() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    <QueryClientProvider client={client}>
+      <MemoryRouter>{children}</MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

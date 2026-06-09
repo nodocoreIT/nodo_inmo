@@ -14,7 +14,9 @@ const mockUseAuth = vi.fn();
 
 vi.mock("@/app/auth/use-auth", () => ({
   useAuth: () => mockUseAuth(),
-  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  AuthProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 // Mock react-router-dom navigate
@@ -52,12 +54,16 @@ describe("LoginPage", () => {
     renderLogin();
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/contraseña|password/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }),
+    ).toBeInTheDocument();
   });
 
   it("shows an error when submitting empty fields", async () => {
     renderLogin();
-    await userEvent.click(screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }),
+    );
     // The form should NOT call signInWithPassword with empty values
     // and should show a validation message
     expect(mockSignIn).not.toHaveBeenCalled();
@@ -68,8 +74,13 @@ describe("LoginPage", () => {
     renderLogin();
 
     await userEvent.type(screen.getByLabelText(/email/i), "admin@nodo.com");
-    await userEvent.type(screen.getByLabelText(/contraseña|password/i), "secret123");
-    await userEvent.click(screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }));
+    await userEvent.type(
+      screen.getByLabelText(/contraseña|password/i),
+      "secret123",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }),
+    );
 
     await waitFor(() =>
       expect(mockSignIn).toHaveBeenCalledWith({
@@ -82,27 +93,40 @@ describe("LoginPage", () => {
   it("shows error message on auth failure", async () => {
     mockSignIn.mockResolvedValue({
       data: { session: null },
-      error: { message: "Invalid login credentials" },
+      error: { message: "Credenciales de login incorrectas" },
     });
     renderLogin();
 
     await userEvent.type(screen.getByLabelText(/email/i), "bad@nodo.com");
-    await userEvent.type(screen.getByLabelText(/contraseña|password/i), "wrong");
-    await userEvent.click(screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }));
-
-    await waitFor(() =>
-      expect(screen.getByRole("alert")).toBeInTheDocument(),
+    await userEvent.type(
+      screen.getByLabelText(/contraseña|password/i),
+      "wrong",
     );
-    expect(screen.getByRole("alert")).toHaveTextContent(/invalid login credentials/i);
+    await userEvent.click(
+      screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }),
+    );
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /invalid login credentials/i,
+    );
   });
 
   it("navigates to '/' on successful sign-in", async () => {
-    mockSignIn.mockResolvedValue({ data: { session: { user: {} } }, error: null });
+    mockSignIn.mockResolvedValue({
+      data: { session: { user: {} } },
+      error: null,
+    });
     renderLogin();
 
     await userEvent.type(screen.getByLabelText(/email/i), "admin@nodo.com");
-    await userEvent.type(screen.getByLabelText(/contraseña|password/i), "secret123");
-    await userEvent.click(screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }));
+    await userEvent.type(
+      screen.getByLabelText(/contraseña|password/i),
+      "secret123",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }),
+    );
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/"));
   });
@@ -110,15 +134,24 @@ describe("LoginPage", () => {
   it("disables the submit button while loading", async () => {
     // signIn takes a tick to resolve — button must be disabled during that tick
     mockSignIn.mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve({ data: { session: {} }, error: null }), 50)),
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ data: { session: {} }, error: null }), 50),
+        ),
     );
     renderLogin();
 
     await userEvent.type(screen.getByLabelText(/email/i), "admin@nodo.com");
     await userEvent.type(screen.getByLabelText(/contraseña|password/i), "pass");
-    await userEvent.click(screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar/i }),
+    );
 
-    expect(screen.getByRole("button", { name: /iniciar sesión|sign in|ingresar|cargando|loading/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", {
+        name: /iniciar sesión|sign in|ingresar|cargando|loading/i,
+      }),
+    ).toBeDisabled();
 
     await waitFor(() => expect(mockSignIn).toHaveBeenCalledOnce());
   });

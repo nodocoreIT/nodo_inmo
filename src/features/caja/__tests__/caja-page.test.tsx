@@ -29,11 +29,16 @@ vi.mock("@/features/caja/components/movement-form-dialog", () => ({
   MovementFormDialog: () => null,
 }));
 
+import { MemoryRouter } from "react-router-dom";
 import { CajaPage } from "@/features/caja/components/caja-page";
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <MemoryRouter>{children}</MemoryRouter>
+    </QueryClientProvider>
+  );
 }
 
 const MOVEMENTS = [

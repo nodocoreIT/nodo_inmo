@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/shared/components/ui/button";
 import { DocumentsTable } from "./documents-table";
 import { UploadDocumentDialog } from "./upload-document-dialog";
 import { useDocuments } from "@/features/documentos/hooks/use-documents";
+import { PaginationControls } from "@/shared/components/ui/pagination";
+
+const PAGE_SIZE = 10;
 
 /**
  * DocumentsSection — Document management area for the Documentos page.
@@ -12,7 +15,15 @@ import { useDocuments } from "@/features/documentos/hooks/use-documents";
  */
 export function DocumentsSection() {
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [page, setPage] = useState(0);
   const { data: documents, isLoading } = useDocuments();
+
+  const all = documents ?? [];
+  const totalPages = Math.ceil(all.length / PAGE_SIZE);
+  const pagedDocuments = useMemo(
+    () => all.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [all, page],
+  );
 
   return (
     <section className="flex flex-col gap-4">
@@ -21,7 +32,17 @@ export function DocumentsSection() {
         <Button onClick={() => setUploadOpen(true)}>Subir documento</Button>
       </div>
 
-      <DocumentsTable documents={documents ?? []} isLoading={isLoading} />
+      <DocumentsTable documents={pagedDocuments} isLoading={isLoading} />
+
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        total={all.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="documentos"
+        onPrev={() => setPage((p) => p - 1)}
+        onNext={() => setPage((p) => p + 1)}
+      />
 
       <UploadDocumentDialog open={uploadOpen} onOpenChange={setUploadOpen} />
     </section>

@@ -12,7 +12,6 @@ import {
   Flame,
   MoveVertical,
   ParkingCircle,
-  ImagePlus,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -43,8 +42,7 @@ import {
 import type { PropertyRow } from "@/features/properties/hooks/use-properties";
 import { useContacts } from "@/features/contacts/hooks/use-contacts";
 import { formatCurrencyInput, parseCurrencyInput } from "@/shared/lib/format-money";
-import { useUploadPropertyPhoto } from "@/features/properties/hooks/use-upload-property-photo";
-import { usePropertyPhotoUrl } from "@/features/properties/hooks/use-property-photo-url";
+import { PhotoGallery } from "./photo-gallery";
 import { cn } from "@/shared/lib/utils";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
@@ -162,9 +160,6 @@ export function PropertyFormDialog({
 }: PropertyFormDialogProps) {
   const isEdit = !!property;
   const { data: owners = [] } = useContacts("owner");
-  const uploadPhoto = useUploadPropertyPhoto();
-  const { data: currentPhotoUrl } = usePropertyPhotoUrl(property?.main_photo);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(schema) as any,
@@ -214,13 +209,6 @@ export function PropertyFormDialog({
     await onSubmit(buildPayload(values), property);
     if (!isEdit) form.reset();
     onSuccess?.();
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !property?.id || !property?.org_id) return;
-    uploadPhoto.mutate({ propertyId: property.id, orgId: property.org_id, file });
-    e.target.value = "";
   }
 
   return (
@@ -541,43 +529,17 @@ export function PropertyFormDialog({
               />
             )}
 
-            {/* Photo upload — edit mode only */}
-            {isEdit && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Foto principal</p>
-                {currentPhotoUrl && (
-                  <img
-                    src={currentPhotoUrl}
-                    alt="Foto actual"
-                    className="h-32 w-full rounded-md object-cover"
-                  />
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 w-full"
-                  disabled={uploadPhoto.isPending}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {uploadPhoto.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ImagePlus className="h-4 w-4" />
-                  )}
-                  {uploadPhoto.isPending ? "Subiendo…" : currentPhotoUrl ? "Cambiar foto" : "Subir foto"}
-                </Button>
-                {!isEdit && (
-                  <p className="text-xs text-slate2">Podrás agregar una foto una vez creada la propiedad.</p>
-                )}
-              </div>
+            {/* Photo gallery */}
+            {isEdit && property?.id && property?.org_id ? (
+              <PhotoGallery
+                paths={(property as any).photos ?? []}
+                propertyId={property.id}
+                orgId={property.org_id}
+              />
+            ) : (
+              <p className="text-xs text-slate2">
+                Podrás agregar fotos una vez creada la propiedad.
+              </p>
             )}
 
             <DialogFooter className="mt-2">

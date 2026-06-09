@@ -3,8 +3,9 @@
  * PropietariosList and InquilinosList both render this,
  * passing different column configs.
  */
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { PaginationControls } from "@/shared/components/ui/pagination";
 import { Button } from "@/shared/components/ui/button";
 import {
   Table,
@@ -29,6 +30,8 @@ import { ContactFormDialog } from "./contact-form-dialog";
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
 import type { ContactRow, ContactRole } from "@/features/contacts/hooks/use-contacts";
+
+const PAGE_SIZE = 10;
 import { useCreateContact } from "@/features/contacts/hooks/use-create-contact";
 import { useUpdateContact } from "@/features/contacts/hooks/use-update-contact";
 import { useDeleteContact } from "@/features/contacts/hooks/use-delete-contact";
@@ -73,6 +76,7 @@ export function ContactsListTable({
 }: ContactsListTableProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editContact, setEditContact] = useState<ContactRow | null>(null);
+  const [page, setPage] = useState(0);
 
   const createContact = useCreateContact();
   const updateContact = useUpdateContact();
@@ -83,6 +87,14 @@ export function ContactsListTable({
     matchesQuery([c.name, c.dni, c.phone, c.email], query),
   );
   const noResults = !!data && data.length > 0 && filtered.length === 0;
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pagedRows = useMemo(
+    () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [filtered, page],
+  );
+
+  useEffect(() => { setPage(0); }, [query]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -152,7 +164,7 @@ export function ContactsListTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((contact) => (
+              {pagedRows.map((contact) => (
                 <TableRow key={contact.id}>
                   <TableCell className="font-medium">{contact.name}</TableCell>
                   <TableCell>{contact.dni ?? "—"}</TableCell>
@@ -174,6 +186,16 @@ export function ContactsListTable({
           </Table>
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        total={filtered.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="contactos"
+        onPrev={() => setPage((p) => p - 1)}
+        onNext={() => setPage((p) => p + 1)}
+      />
 
       {/* Create dialog */}
       <ContactFormDialog

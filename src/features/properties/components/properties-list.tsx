@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { PaginationControls } from "@/shared/components/ui/pagination";
 import { useProperties } from "@/features/properties/hooks/use-properties";
 import type { PropertyRow } from "@/features/properties/hooks/use-properties";
 import { useSearchStore } from "@/shared/search/use-search-store";
@@ -38,10 +39,13 @@ import {
   formatPrice,
 } from "@/features/properties/lib/property-labels";
 
+const PAGE_SIZE = 10;
+
 export function PropertiesList() {
   const { data, isLoading, isError } = useProperties();
   const query = useSearchStore((s) => s.query);
   const [createOpen, setCreateOpen] = useState(false);
+  const [page, setPage] = useState(0);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [voiceDefaults, setVoiceDefaults] = useState<Partial<PropertyFormValues> | null>(null);
   const [editProperty, setEditProperty] = useState<PropertyRow | null>(null);
@@ -54,13 +58,25 @@ export function PropertiesList() {
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
 
-  const filtered = (data ?? []).filter((p) =>
-    matchesQuery(
-      [p.address, p.property_type, p.operation, p.status, p.description],
-      query,
-    ),
+  const filtered = useMemo(
+    () =>
+      (data ?? []).filter((p) =>
+        matchesQuery(
+          [p.address, p.property_type, p.operation, p.status, p.description],
+          query,
+        ),
+      ),
+    [data, query],
   );
   const noResults = !!data && data.length > 0 && filtered.length === 0;
+
+  useEffect(() => { setPage(0); }, [query]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pagedRows = useMemo(
+    () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [filtered, page],
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,7 +144,7 @@ export function PropertiesList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((property) => (
+              {pagedRows.map((property) => (
                 <TableRow key={property.id}>
                   <TableCell className="font-medium">
                     {property.address}
@@ -162,6 +178,16 @@ export function PropertiesList() {
           </Table>
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        total={filtered.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="propiedades"
+        onPrev={() => setPage((p) => p - 1)}
+        onNext={() => setPage((p) => p + 1)}
+      />
 
       {/* Create dialog */}
       <CreatePropertyDialog
