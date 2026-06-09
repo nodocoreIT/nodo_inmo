@@ -30,11 +30,11 @@ import { ContactFormDialog } from "./contact-form-dialog";
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
 import type { ContactRow, ContactRole } from "@/features/contacts/hooks/use-contacts";
-
-const PAGE_SIZE = 10;
 import { useCreateContact } from "@/features/contacts/hooks/use-create-contact";
 import { useUpdateContact } from "@/features/contacts/hooks/use-update-contact";
 import { useDeleteContact } from "@/features/contacts/hooks/use-delete-contact";
+
+const PAGE_SIZE = 10;
 
 // ── Column config ─────────────────────────────────────────────────────────────
 
