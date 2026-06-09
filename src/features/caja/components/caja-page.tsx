@@ -36,9 +36,9 @@ import {
 import { cn } from "@/shared/lib/utils";
 import type { SettlementWithOwner } from "@/features/caja/hooks/use-owner-settlements";
 
-type Tab = "movimientos" | "liquidaciones";
+import { PAGE_SIZE } from "@/shared/lib/constants";
 
-const PAGE_SIZE = 10;
+type Tab = "movimientos" | "liquidaciones";
 
 const SOURCE_LABELS: Record<string, string> = {
   manual: "Manual",

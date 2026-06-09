@@ -4,8 +4,7 @@ import { DocumentsTable } from "./documents-table";
 import { UploadDocumentDialog } from "./upload-document-dialog";
 import { useDocuments } from "@/features/documentos/hooks/use-documents";
 import { PaginationControls } from "@/shared/components/ui/pagination";
-
-const PAGE_SIZE = 10;
+import { PAGE_SIZE } from "@/shared/lib/constants";
 
 /**
  * DocumentsSection — Document management area for the Documentos page.

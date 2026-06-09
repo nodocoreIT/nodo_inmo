@@ -33,8 +33,7 @@ import type { ContactRow, ContactRole } from "@/features/contacts/hooks/use-cont
 import { useCreateContact } from "@/features/contacts/hooks/use-create-contact";
 import { useUpdateContact } from "@/features/contacts/hooks/use-update-contact";
 import { useDeleteContact } from "@/features/contacts/hooks/use-delete-contact";
-
-const PAGE_SIZE = 10;
+import { PAGE_SIZE } from "@/shared/lib/constants";
 
 // ── Column config ─────────────────────────────────────────────────────────────
 

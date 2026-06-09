@@ -22,8 +22,7 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { formatMoney, formatDate } from "@/features/contracts/lib/contract-labels";
-
-const PAGE_SIZE = 10;
+import { PAGE_SIZE } from "@/shared/lib/constants";
 
 export function DocumentosPage() {
   const { data, isLoading, isError } = useContracts();

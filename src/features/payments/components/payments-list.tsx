@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { PAGE_SIZE } from "@/shared/lib/constants";
 import { useSearchParams } from "react-router-dom";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
@@ -25,8 +26,6 @@ import {
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
 import { cn } from "@/shared/lib/utils";
-
-const PAGE_SIZE = 10;
 
 type Filter = "all" | "pending" | "overdue" | "paid";
 

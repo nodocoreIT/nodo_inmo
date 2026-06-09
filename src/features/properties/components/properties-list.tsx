@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { PaginationControls } from "@/shared/components/ui/pagination";
+import { PAGE_SIZE } from "@/shared/lib/constants";
 import { useProperties } from "@/features/properties/hooks/use-properties";
 import type { PropertyRow } from "@/features/properties/hooks/use-properties";
 import { useSearchStore } from "@/shared/search/use-search-store";
@@ -38,8 +39,6 @@ import {
   STATUS_LABELS,
   formatPrice,
 } from "@/features/properties/lib/property-labels";
-
-const PAGE_SIZE = 10;
 
 export function PropertiesList() {
   const { data, isLoading, isError } = useProperties();
