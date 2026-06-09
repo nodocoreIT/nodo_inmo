@@ -22,6 +22,7 @@ import {
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask, TaskRow } from "../hooks/use-tasks";
 import { useProperties } from "@/features/properties/hooks/use-properties";
 import { useContacts } from "@/features/contacts/hooks/use-contacts";
+import { useStaff } from "@/shared/hooks/use-staff";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Label } from "@/shared/components/ui/label";
@@ -49,6 +50,7 @@ export function AgendaPage() {
   const { data: tasks = [], isLoading } = useTasks();
   const { data: properties = [] } = useProperties();
   const { data: contacts = [] } = useContacts();
+  const { users } = useStaff();
 
   const createTaskMutation = useCreateTask();
   const updateTaskMutation = useUpdateTask();
@@ -207,11 +209,6 @@ export function AgendaPage() {
   const futureTasks = filteredTasks.filter(
     (t) => t.due_date > selectedDateStr && t.due_date >= todayStr
   );
-
-  // List of unique assignees for the filter
-  const assigneesList = Array.from(
-    new Set(tasks.map((t) => t.assigned_to).filter(Boolean))
-  ) as string[];
 
   // Render a Category Icon
   const getCategoryBadge = (catValue: string) => {
@@ -400,9 +397,10 @@ export function AgendaPage() {
                 className="w-full text-xs rounded border border-border p-2 bg-white"
               >
                 <option value="all">Cualquiera</option>
-                {assigneesList.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
+                <option value="">Sin asignar / General</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.name}>
+                    {u.name}
                   </option>
                 ))}
               </select>
@@ -599,12 +597,19 @@ export function AgendaPage() {
               {/* Assigned To */}
               <div className="space-y-1">
                 <Label htmlFor="task-assign">Empleado Asignado</Label>
-                <Input
+                <select
                   id="task-assign"
-                  placeholder="Ej. Ramiro Tule"
                   value={formAssignedTo}
                   onChange={(e) => setFormAssignedTo(e.target.value)}
-                />
+                  className="w-full text-xs rounded border border-border p-2 bg-white h-9"
+                >
+                  <option value="">Sin asignar / General</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.name}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

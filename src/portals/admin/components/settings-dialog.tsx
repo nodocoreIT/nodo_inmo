@@ -17,6 +17,7 @@ import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
 import { useUploadLogo } from "@/features/agency-profile/hooks/use-upload-logo";
 import { useLogoUrl } from "@/features/agency-profile/hooks/use-logo-url";
 import { useUpsertOrgProfile } from "@/features/agency-profile/hooks/use-upsert-org-profile";
+import { useStaff } from "@/shared/hooks/use-staff";
 
 interface BankAccount {
   id: string;
@@ -137,22 +138,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [isAddingBank, setIsAddingBank] = useState(false);
 
   // Dynamic Users state (mocked mapped to Node architecture logic)
-  const [users, setUsers] = useState([
-    {
-      id: "1",
-      name: "Ramiro Tule",
-      email: "ramiro@nodoinmo.com",
-      role: "Nodo Administrador",
-      status: "Activo",
-    },
-    {
-      id: "2",
-      name: "Juan Colega",
-      email: "juan@inmobiliaria.com",
-      role: "Nodo Colega",
-      status: "Activo",
-    },
-  ]);
+  const { users, inviteUser } = useStaff();
   const [newMember, setNewMember] = useState({
     name: "",
     email: "",
@@ -176,26 +162,20 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setBankAccounts((prev) => prev.filter((b) => b.id !== id));
   };
 
-  const handleInviteUser = (e: React.FormEvent) => {
+  const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMember.name || !newMember.email) return;
     setIsInviting(true);
-    setTimeout(() => {
-      setUsers((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          name: newMember.name,
-          email: newMember.email,
-          role: newMember.role,
-          status: "Pendiente",
-        },
-      ]);
+    try {
+      await inviteUser(newMember.name, newMember.email, newMember.role);
       setNewMember({ name: "", email: "", role: "Nodo Colega" });
-      setIsInviting(false);
       setInviteSuccess(true);
       setTimeout(() => setInviteSuccess(false), 3000);
-    }, 1000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsInviting(false);
+    }
   };
 
   return (

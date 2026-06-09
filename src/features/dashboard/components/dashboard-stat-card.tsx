@@ -4,7 +4,7 @@ import { cn } from "@/shared/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Severity = "default" | "danger" | "success";
+type Severity = "default" | "danger" | "success" | "info";
 
 export interface DashboardStatCardProps {
   label: string;
@@ -21,12 +21,14 @@ const SEVERITY_LABEL_CLASS: Record<Severity, string> = {
   default: "text-slate2",
   danger: "text-destructive",
   success: "text-green-700",
+  info: "text-blue-600",
 };
 
 const SEVERITY_VALUE_CLASS: Record<Severity, string> = {
   default: "text-navy",
   danger: "text-destructive",
   success: "text-green-700",
+  info: "text-blue-600",
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────

@@ -4,7 +4,9 @@
  * Phase B: read-only browse surface over existing contracts.
  * Phase D: DocumentsSection added below the contracts table.
  */
+import { useState, useMemo, useEffect } from "react";
 import { useContracts } from "@/features/contracts/hooks/use-contracts";
+import { PaginationControls } from "@/shared/components/ui/pagination";
 import { ContractPdfActions } from "@/features/contracts/components/contract-pdf-actions";
 import { ContractStatusBadge } from "@/features/contracts/components/contract-status-badge";
 import { ContractLocacionButton } from "@/features/contracts/components/contract-locacion-button";
@@ -21,9 +23,12 @@ import {
 } from "@/shared/components/ui/table";
 import { formatMoney, formatDate } from "@/features/contracts/lib/contract-labels";
 
+const PAGE_SIZE = 10;
+
 export function DocumentosPage() {
   const { data, isLoading, isError } = useContracts();
   const query = useSearchStore((s) => s.query);
+  const [page, setPage] = useState(0);
 
   const filtered = (data ?? []).filter((c) =>
     matchesQuery(
@@ -32,6 +37,14 @@ export function DocumentosPage() {
     ),
   );
   const noResults = !!data && data.length > 0 && filtered.length === 0;
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pagedRows = useMemo(
+    () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [filtered, page],
+  );
+
+  useEffect(() => { setPage(0); }, [query]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -89,7 +102,7 @@ export function DocumentosPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((contract) => (
+              {pagedRows.map((contract) => (
                 <TableRow key={contract.id}>
                   <TableCell className="font-medium">
                     {contract.tenant?.name ?? "—"}
@@ -115,6 +128,16 @@ export function DocumentosPage() {
           </Table>
         </div>
       )}
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        total={filtered.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="contratos"
+        onPrev={() => setPage((p) => p - 1)}
+        onNext={() => setPage((p) => p + 1)}
+      />
+
       <div className="border-t border-border pt-6">
         <DocumentsSection />
       </div>

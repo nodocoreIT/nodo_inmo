@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Pencil, Trash2, CalendarPlus, Eye } from "lucide-react";
+import { PaginationControls } from "@/shared/components/ui/pagination";
 import { Button } from "@/shared/components/ui/button";
 import { useContracts } from "@/features/contracts/hooks/use-contracts";
 import type { ContractWithRelations } from "@/features/contracts/hooks/use-contracts";
@@ -45,6 +46,8 @@ import {
   formatDate,
 } from "@/features/contracts/lib/contract-labels";
 
+const PAGE_SIZE = 10;
+
 export function ContractsList() {
   const { data, isLoading, isError } = useContracts();
   const query = useSearchStore((s) => s.query);
@@ -58,6 +61,7 @@ export function ContractsList() {
   const deleteContract = useDeleteContract();
   const updateContract = useUpdateContract();
   const generateInstallments = useGenerateInstallments();
+  const [page, setPage] = useState(0);
 
   const filtered = (data ?? []).filter((c) =>
     matchesQuery(
@@ -66,6 +70,14 @@ export function ContractsList() {
     ),
   );
   const noResults = !!data && data.length > 0 && filtered.length === 0;
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pagedRows = useMemo(
+    () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [filtered, page],
+  );
+
+  useEffect(() => { setPage(0); }, [query]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -132,7 +144,7 @@ export function ContractsList() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((contract) => (
+              {pagedRows.map((contract) => (
                 <TableRow key={contract.id}>
                   <TableCell className="font-medium">
                     {contract.property?.address ?? "—"}
@@ -202,6 +214,16 @@ export function ContractsList() {
           </Table>
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        total={filtered.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="contratos"
+        onPrev={() => setPage((p) => p - 1)}
+        onNext={() => setPage((p) => p + 1)}
+      />
 
       <CreateContractDialog
         open={createOpen}

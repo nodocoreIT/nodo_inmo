@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { PaginationControls } from "@/shared/components/ui/pagination";
+import { useSearchParams } from "react-router-dom";
 import { Plus, ArrowUpRight, ArrowDownRight, Download, Share2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -36,6 +38,8 @@ import type { SettlementWithOwner } from "@/features/caja/hooks/use-owner-settle
 
 type Tab = "movimientos" | "liquidaciones";
 
+const PAGE_SIZE = 10;
+
 const SOURCE_LABELS: Record<string, string> = {
   manual: "Manual",
   commission: "Comisión",
@@ -43,7 +47,18 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 export function CajaPage() {
-  const [tab, setTab] = useState<Tab>("movimientos");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryTab = searchParams.get("tab");
+  const initialTab: Tab = queryTab === "liquidaciones" ? "liquidaciones" : "movimientos";
+  const [tab, setTabState] = useState<Tab>(initialTab);
+
+  const setTab = (newTab: Tab) => {
+    setTabState(newTab);
+    setSearchParams((prev) => {
+      prev.set("tab", newTab);
+      return prev;
+    });
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -121,8 +136,14 @@ function StatCard({
 function MovementsTab() {
   const { data, isLoading, isError } = useCashMovements();
   const [createOpen, setCreateOpen] = useState(false);
+  const [page, setPage] = useState(0);
 
   const movements = data ?? [];
+  const totalPages = Math.ceil(movements.length / PAGE_SIZE);
+  const pagedMovements = useMemo(
+    () => movements.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [movements, page],
+  );
   const { income, expense, balance } = computeTotals(movements);
 
   return (
@@ -197,7 +218,7 @@ function MovementsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {movements.map((m) => (
+              {pagedMovements.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell>{formatDate(m.date)}</TableCell>
                   <TableCell className="font-medium">{m.concept}</TableCell>
@@ -228,6 +249,16 @@ function MovementsTab() {
           </Table>
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        total={movements.length}
+        pageSize={PAGE_SIZE}
+        itemLabel="movimientos"
+        onPrev={() => setPage((p) => p - 1)}
+        onNext={() => setPage((p) => p + 1)}
+      />
 
       <MovementFormDialog
         open={createOpen}
