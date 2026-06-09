@@ -7,6 +7,7 @@ import {
   Square,
   CheckCircle2,
 } from "lucide-react";
+
 import {
   Dialog,
   DialogContent,
@@ -65,86 +66,42 @@ interface FeedbackDialogProps {
 
 export function FeedbackFAB() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false); // starts collapsed
-  const [activeIcon, setActiveIcon] = useState<"logo" | "mic" | "lightbulb">(
-    "logo",
-  );
-  const [logoBlinkCount, setLogoBlinkCount] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Logo blinking first 3 times, then cycle logo -> mic -> lightbulb
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (logoBlinkCount < 6) {
-        // Blinks = toggle logo opacity / visibility state
-        setActiveIcon((prev) => (prev === "logo" ? "logo" : "logo")); // keeps logo
-        setLogoBlinkCount((prev) => prev + 1);
-      } else {
-        // After blinking, cycle icons
-        setActiveIcon((prev) => {
-          if (prev === "logo") return "mic";
-          if (prev === "mic") return "lightbulb";
-          return "logo";
-        });
-      }
-    }, 3000);
+  function handleMouseEnter() {
+    if (collapseTimer.current) {
+      clearTimeout(collapseTimer.current);
+      collapseTimer.current = null;
+    }
+    setIsExpanded(true);
+  }
 
-    return () => clearInterval(timer);
-  }, [logoBlinkCount]);
+  function handleMouseLeave() {
+    collapseTimer.current = setTimeout(() => setIsExpanded(false), 200);
+  }
 
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
-        onMouseEnter={() => setIsExpanded(true)}
-        onMouseLeave={() => setIsExpanded(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={cn(
-          "fixed bottom-6 right-6 z-40 flex h-14 items-center rounded-full bg-gradient-to-r from-brand to-brand-600 text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95 group focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 justify-center",
-          isExpanded ? "px-4 gap-2 w-auto" : "w-14 px-0 gap-0"
+          "fixed bottom-6 right-6 z-40 flex h-14 items-center justify-center rounded-full text-white shadow-lg transition-all duration-300 hover:brightness-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111E2F]",
+          isExpanded ? "w-auto gap-3 px-6" : "w-14 gap-0 px-0",
         )}
-        style={{
-          boxShadow: "0 0 15px rgba(218, 90, 14, 0.4)",
-        }}
+        style={{ backgroundColor: "#111E2F" }}
       >
-        {/* Pulsing ambient indicator ring */}
-        <span className="absolute inset-0 rounded-full border-2 border-brand/30 animate-ping pointer-events-none" />
-
-        <div className="relative h-6 w-6 flex items-center justify-center">
-          {/* Logo element with blinking effect in the first cycles */}
-          <img
-            src="/brand/nodo-mark-white.png"
-            alt="Nodo"
-            className={cn(
-              "absolute top-0 left-0 h-6 w-6 transition-all duration-500 transform",
-              activeIcon === "logo"
-                ? "scale-100 rotate-0 opacity-100"
-                : "scale-0 rotate-90 opacity-0",
-              logoBlinkCount < 6 && logoBlinkCount % 2 === 0
-                ? "animate-pulse"
-                : "",
-            )}
-          />
-          <Mic
-            className={cn(
-              "absolute top-0 left-0 h-6 w-6 transition-all duration-500 transform",
-              activeIcon === "mic"
-                ? "scale-100 rotate-0 opacity-100"
-                : "scale-0 rotate-90 opacity-0",
-            )}
-          />
-          <Lightbulb
-            className={cn(
-              "absolute top-0 left-0 h-6 w-6 transition-all duration-500 transform",
-              activeIcon === "lightbulb"
-                ? "scale-100 rotate-0 opacity-100"
-                : "scale-0 -rotate-90 opacity-0",
-            )}
-          />
-        </div>
-
+        <img
+          src="/brand/nodo-mark-white.png"
+          alt="Nodo"
+          className="h-8 w-8 shrink-0"
+        />
         <span
           className={cn(
-            "overflow-hidden font-display text-sm font-semibold tracking-wide whitespace-nowrap transition-all duration-500 ease-in-out",
-            isExpanded ? "max-w-[200px] opacity-100" : "max-w-0 opacity-0",
+            "overflow-hidden whitespace-nowrap font-display text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out",
+            isExpanded ? "max-w-xs opacity-100 pr-1" : "max-w-0 opacity-0",
           )}
         >
           ¿Cómo mejorar este Nodo?
