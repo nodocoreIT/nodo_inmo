@@ -14,6 +14,7 @@ import { PropertyFormDialog } from "./property-form-dialog";
 import type { PropertyFormValues } from "./property-form-dialog";
 import { VoicePropertyButton } from "./voice-property-button";
 import { RegisterExpenseButton } from "@/features/property-expenses/components/register-expense-button";
+import { SharePropertyButton } from "./share-property-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -241,6 +242,7 @@ interface RowActionsProps {
 function RowActions({ property, onEdit, onDeleteConfirm }: RowActionsProps) {
   return (
     <div className="flex items-center justify-end gap-1">
+      <SharePropertyButton property={property} />
       {/* "Registrar gasto" — only renders for admin role (gated inside the button) */}
       <RegisterExpenseButton propertyId={property.id} />
 

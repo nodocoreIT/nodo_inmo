@@ -41,7 +41,10 @@ import {
 } from "@/shared/components/ui/select";
 import type { PropertyRow } from "@/features/properties/hooks/use-properties";
 import { useContacts } from "@/features/contacts/hooks/use-contacts";
-import { formatCurrencyInput, parseCurrencyInput } from "@/shared/lib/format-money";
+import {
+  formatCurrencyInput,
+  parseCurrencyInput,
+} from "@/shared/lib/format-money";
 import { PhotoGallery } from "./photo-gallery";
 import { cn } from "@/shared/lib/utils";
 
@@ -49,6 +52,8 @@ import { cn } from "@/shared/lib/utils";
 
 const schema = z.object({
   address: z.string().min(1, "Dirección requerida"),
+  localidad: z.string().optional(),
+  provincia: z.string().optional(),
   operation: z.enum(["rent", "sale"], { error: "Seleccioná una operación" }),
   property_type: z.enum(["apartment", "house", "commercial", "land", "other"], {
     error: "Seleccioná un tipo",
@@ -79,14 +84,46 @@ export type PropertyFormValues = z.infer<typeof schema>;
 const NO_OWNER = "none";
 
 const AMENITY_TOGGLES = [
-  { name: "has_pool" as const, label: "Pileta", icon: <Waves className="h-4 w-4" /> },
-  { name: "pets_allowed" as const, label: "Mascotas", icon: <PawPrint className="h-4 w-4" /> },
-  { name: "has_garage" as const, label: "Garaje", icon: <Car className="h-4 w-4" /> },
-  { name: "has_garden" as const, label: "Jardín", icon: <TreePine className="h-4 w-4" /> },
-  { name: "has_laundry" as const, label: "Lavadero", icon: <WashingMachine className="h-4 w-4" /> },
-  { name: "has_bbq" as const, label: "Parrilla", icon: <Flame className="h-4 w-4" /> },
-  { name: "has_elevator" as const, label: "Ascensor", icon: <MoveVertical className="h-4 w-4" /> },
-  { name: "has_parking" as const, label: "Estacionamiento", icon: <ParkingCircle className="h-4 w-4" /> },
+  {
+    name: "has_pool" as const,
+    label: "Pileta",
+    icon: <Waves className="h-4 w-4" />,
+  },
+  {
+    name: "pets_allowed" as const,
+    label: "Mascotas",
+    icon: <PawPrint className="h-4 w-4" />,
+  },
+  {
+    name: "has_garage" as const,
+    label: "Garaje",
+    icon: <Car className="h-4 w-4" />,
+  },
+  {
+    name: "has_garden" as const,
+    label: "Jardín",
+    icon: <TreePine className="h-4 w-4" />,
+  },
+  {
+    name: "has_laundry" as const,
+    label: "Lavadero",
+    icon: <WashingMachine className="h-4 w-4" />,
+  },
+  {
+    name: "has_bbq" as const,
+    label: "Parrilla",
+    icon: <Flame className="h-4 w-4" />,
+  },
+  {
+    name: "has_elevator" as const,
+    label: "Ascensor",
+    icon: <MoveVertical className="h-4 w-4" />,
+  },
+  {
+    name: "has_parking" as const,
+    label: "Estacionamiento",
+    icon: <ParkingCircle className="h-4 w-4" />,
+  },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -124,6 +161,8 @@ interface PropertyFormDialogProps {
 function buildPayload(values: PropertyFormValues) {
   return {
     address: values.address,
+    localidad: values.localidad || null,
+    provincia: values.provincia || null,
     operation: values.operation,
     property_type: values.property_type,
     status: values.status,
@@ -165,15 +204,25 @@ export function PropertyFormDialog({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       address: property?.address ?? voiceDefaults?.address ?? "",
-      operation: (property?.operation as any) ?? voiceDefaults?.operation ?? undefined,
-      property_type: (property?.property_type as any) ?? voiceDefaults?.property_type ?? undefined,
+      localidad: property?.localidad ?? "",
+      provincia: property?.provincia ?? "",
+      operation:
+        (property?.operation as any) ?? voiceDefaults?.operation ?? undefined,
+      property_type:
+        (property?.property_type as any) ??
+        voiceDefaults?.property_type ??
+        undefined,
       status: (property?.status as any) ?? voiceDefaults?.status ?? "available",
       currency: (property?.currency as any) ?? voiceDefaults?.currency ?? "ARS",
       sale_price:
-        formatCurrencyInput(property?.sale_price, (property?.currency as any) ?? "ARS") ||
+        formatCurrencyInput(
+          property?.sale_price,
+          (property?.currency as any) ?? "ARS",
+        ) ||
         voiceDefaults?.sale_price ||
         "",
-      total_sqm: toStringOrEmpty(property?.total_sqm) || voiceDefaults?.total_sqm || "",
+      total_sqm:
+        toStringOrEmpty(property?.total_sqm) || voiceDefaults?.total_sqm || "",
       rooms: toStringOrEmpty(property?.rooms) || voiceDefaults?.rooms || "",
       bathrooms: toStringOrEmpty(property?.bathrooms),
       description: property?.description ?? voiceDefaults?.description ?? "",
@@ -190,7 +239,6 @@ export function PropertyFormDialog({
       has_parking: property?.has_parking ?? false,
     },
   });
-
 
   const currency = form.watch("currency") || "ARS";
   const prevCurrencyRef = useRef(currency);
@@ -250,6 +298,46 @@ export function PropertyFormDialog({
               )}
             />
 
+            {/* Localidad + Provincia */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control as any}
+                name="provincia"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel htmlFor="provincia-input">Provincia</FormLabel>
+                    <FormControl>
+                      <Input
+                        id="provincia-input"
+                        aria-label="Provincia"
+                        placeholder="Buenos Aires"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control as any}
+                name="localidad"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel htmlFor="localidad-input">Localidad</FormLabel>
+                    <FormControl>
+                      <Input
+                        id="localidad-input"
+                        aria-label="Localidad"
+                        placeholder="Buenos Aires"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             {/* Operation + Property type */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -260,7 +348,10 @@ export function PropertyFormDialog({
                     <FormLabel htmlFor="operation-trigger">Operación</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger id="operation-trigger" aria-label="Operación">
+                        <SelectTrigger
+                          id="operation-trigger"
+                          aria-label="Operación"
+                        >
                           <SelectValue placeholder="Seleccioná" />
                         </SelectTrigger>
                       </FormControl>
@@ -279,10 +370,15 @@ export function PropertyFormDialog({
                 name="property_type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel htmlFor="type-trigger">Tipo de propiedad</FormLabel>
+                    <FormLabel htmlFor="type-trigger">
+                      Tipo de propiedad
+                    </FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger id="type-trigger" aria-label="Tipo de propiedad">
+                        <SelectTrigger
+                          id="type-trigger"
+                          aria-label="Tipo de propiedad"
+                        >
                           <SelectValue placeholder="Seleccioná" />
                         </SelectTrigger>
                       </FormControl>
@@ -335,7 +431,10 @@ export function PropertyFormDialog({
                     <FormLabel htmlFor="currency-trigger">Moneda</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger id="currency-trigger" aria-label="Moneda">
+                        <SelectTrigger
+                          id="currency-trigger"
+                          aria-label="Moneda"
+                        >
                           <SelectValue placeholder="ARS" />
                         </SelectTrigger>
                       </FormControl>
@@ -383,7 +482,14 @@ export function PropertyFormDialog({
                   <FormItem>
                     <FormLabel htmlFor="rooms-input">Amb.</FormLabel>
                     <FormControl>
-                      <Input id="rooms-input" aria-label="Ambientes" type="number" min={1} placeholder="0" {...field} />
+                      <Input
+                        id="rooms-input"
+                        aria-label="Ambientes"
+                        type="number"
+                        min={1}
+                        placeholder="0"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -397,7 +503,14 @@ export function PropertyFormDialog({
                   <FormItem>
                     <FormLabel htmlFor="bathrooms-input">Baños</FormLabel>
                     <FormControl>
-                      <Input id="bathrooms-input" aria-label="Baños" type="number" min={0} placeholder="0" {...field} />
+                      <Input
+                        id="bathrooms-input"
+                        aria-label="Baños"
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -413,7 +526,14 @@ export function PropertyFormDialog({
                 <FormItem>
                   <FormLabel htmlFor="sqm-input">Superficie (m²)</FormLabel>
                   <FormControl>
-                    <Input id="sqm-input" aria-label="m²" type="number" min={0} placeholder="0" {...field} />
+                    <Input
+                      id="sqm-input"
+                      aria-label="m²"
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -422,7 +542,9 @@ export function PropertyFormDialog({
 
             {/* Amenities */}
             <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Características</p>
+              <p className="text-sm font-medium text-foreground">
+                Características
+              </p>
               <div className="grid grid-cols-4 gap-2">
                 {AMENITY_TOGGLES.map(({ name, label, icon }) => {
                   const active = form.watch(name);
@@ -475,7 +597,9 @@ export function PropertyFormDialog({
                 <FormItem>
                   <FormLabel htmlFor="owner-select">Propietario</FormLabel>
                   <Select
-                    onValueChange={(v) => field.onChange(v === NO_OWNER ? "" : v)}
+                    onValueChange={(v) =>
+                      field.onChange(v === NO_OWNER ? "" : v)
+                    }
                     value={field.value ? field.value : NO_OWNER}
                   >
                     <FormControl>
@@ -504,12 +628,15 @@ export function PropertyFormDialog({
                 name="commission_rate"
                 render={({ field }) => {
                   const operation = form.watch("operation");
-                  const label = operation === "sale"
-                    ? "Honorarios por intermediación (%)"
-                    : "Comisión por alquiler (%)";
+                  const label =
+                    operation === "sale"
+                      ? "Honorarios por intermediación (%)"
+                      : "Comisión por alquiler (%)";
                   return (
                     <FormItem>
-                      <FormLabel htmlFor="commission-rate-input">{label}</FormLabel>
+                      <FormLabel htmlFor="commission-rate-input">
+                        {label}
+                      </FormLabel>
                       <FormControl>
                         <Input
                           id="commission-rate-input"
@@ -532,7 +659,7 @@ export function PropertyFormDialog({
             {/* Photo gallery */}
             {isEdit && property?.id && property?.org_id ? (
               <PhotoGallery
-                paths={(property as any).photos ?? []}
+                paths={property.photos ?? []}
                 propertyId={property.id}
                 orgId={property.org_id}
               />
