@@ -47,6 +47,8 @@ import {
 } from "@/shared/lib/format-money";
 import { PhotoGallery } from "./photo-gallery";
 import { cn } from "@/shared/lib/utils";
+import { Combobox } from "@/shared/components/ui/combobox";
+import { PROVINCIAS, LOCALIDADES_BY_PROVINCIA, type Provincia } from "@/shared/data/argentina-geo";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -242,6 +244,7 @@ export function PropertyFormDialog({
 
   const currency = form.watch("currency") || "ARS";
   const prevCurrencyRef = useRef(currency);
+  const selectedProvincia = form.watch("provincia") as Provincia | undefined;
   useEffect(() => {
     if (prevCurrencyRef.current !== currency) {
       const currentPrice = form.getValues("sale_price");
@@ -298,20 +301,26 @@ export function PropertyFormDialog({
               )}
             />
 
-            {/* Localidad + Provincia */}
+            {/* Provincia + Localidad */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control as any}
                 name="provincia"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel htmlFor="provincia-input">Provincia</FormLabel>
+                    <FormLabel htmlFor="provincia-combobox">Provincia</FormLabel>
                     <FormControl>
-                      <Input
-                        id="provincia-input"
+                      <Combobox
+                        id="provincia-combobox"
                         aria-label="Provincia"
-                        placeholder="Buenos Aires"
-                        {...field}
+                        options={PROVINCIAS}
+                        value={field.value ?? ""}
+                        onChange={(v) => {
+                          field.onChange(v);
+                          form.setValue("localidad", "");
+                        }}
+                        placeholder="Seleccioná..."
+                        searchPlaceholder="Buscar provincia..."
                       />
                     </FormControl>
                     <FormMessage />
@@ -323,13 +332,23 @@ export function PropertyFormDialog({
                 name="localidad"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel htmlFor="localidad-input">Localidad</FormLabel>
+                    <FormLabel htmlFor="localidad-combobox">Localidad</FormLabel>
                     <FormControl>
-                      <Input
-                        id="localidad-input"
+                      <Combobox
+                        id="localidad-combobox"
                         aria-label="Localidad"
-                        placeholder="Buenos Aires"
-                        {...field}
+                        options={
+                          selectedProvincia
+                            ? LOCALIDADES_BY_PROVINCIA[selectedProvincia] ?? []
+                            : []
+                        }
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder={
+                          selectedProvincia ? "Seleccioná..." : "Primero elegí provincia"
+                        }
+                        searchPlaceholder="Buscar localidad..."
+                        disabled={!selectedProvincia}
                       />
                     </FormControl>
                     <FormMessage />

@@ -503,12 +503,15 @@ export type Database = {
           has_pool: boolean
           id: string
           inventory_description: string | null
+          localidad: string | null
           main_photo: string | null
           operation: string
           org_id: string
           owner_id: string | null
           pets_allowed: boolean
+          photos: string[]
           property_type: string
+          provincia: string | null
           rooms: number | null
           sale_price: number | null
           status: string
@@ -531,12 +534,15 @@ export type Database = {
           has_pool?: boolean
           id?: string
           inventory_description?: string | null
+          localidad?: string | null
           main_photo?: string | null
           operation: string
           org_id: string
           owner_id?: string | null
           pets_allowed?: boolean
+          photos?: string[]
           property_type: string
+          provincia?: string | null
           rooms?: number | null
           sale_price?: number | null
           status?: string
@@ -559,12 +565,15 @@ export type Database = {
           has_pool?: boolean
           id?: string
           inventory_description?: string | null
+          localidad?: string | null
           main_photo?: string | null
           operation?: string
           org_id?: string
           owner_id?: string | null
           pets_allowed?: boolean
+          photos?: string[]
           property_type?: string
+          provincia?: string | null
           rooms?: number | null
           sale_price?: number | null
           status?: string
