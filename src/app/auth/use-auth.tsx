@@ -25,6 +25,7 @@ import { supabase } from "@/shared/lib/supabase";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type AppRole = "admin" | "agent" | "owner" | "tenant";
+export type PlanTier = "starter" | "pro";
 
 export interface AuthContextValue {
   session: Session | null;
@@ -33,6 +34,8 @@ export interface AuthContextValue {
   role: AppRole | null;
   /** Read from app_metadata — null when claim-sync hasn't run yet */
   orgId: string | null;
+  /** Read from app_metadata — null when not yet set by NodoCore provisioning */
+  plan: PlanTier | null;
   loading: boolean;
   signInWithPassword: (credentials: {
     email: string;
@@ -56,21 +59,23 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 function readClaims(session: Session | null): {
   role: AppRole | null;
   orgId: string | null;
+  plan: PlanTier | null;
 } {
   const token = session?.access_token;
-  if (!token) return { role: null, orgId: null };
+  if (!token) return { role: null, orgId: null, plan: null };
   try {
     const payloadB64 = token.split(".")[1];
     const json = atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"));
     const payload = JSON.parse(json) as {
-      app_metadata?: { role?: AppRole; org_id?: string };
+      app_metadata?: { role?: AppRole; org_id?: string; plan?: PlanTier };
     };
     return {
       role: payload.app_metadata?.role ?? null,
       orgId: payload.app_metadata?.org_id ?? null,
+      plan: payload.app_metadata?.plan ?? null,
     };
   } catch {
-    return { role: null, orgId: null };
+    return { role: null, orgId: null, plan: null };
   }
 }
 
@@ -108,11 +113,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => supabase.auth.signOut(), []);
 
   const user = session?.user ?? null;
-  const { role, orgId } = readClaims(session);
+  const { role, orgId, plan } = readClaims(session);
 
   return (
     <AuthContext.Provider
-      value={{ session, user, role, orgId, loading, signInWithPassword, signOut }}
+      value={{ session, user, role, orgId, plan, loading, signInWithPassword, signOut }}
     >
       {children}
     </AuthContext.Provider>

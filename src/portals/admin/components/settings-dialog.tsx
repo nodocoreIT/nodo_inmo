@@ -180,7 +180,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-4xl h-[92vh] md:h-[800px] flex flex-col p-0 overflow-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-4xl h-[92vh] md:h-[800px] flex flex-col p-0 overflow-hidden">
         {/* Header con tabs */}
         <div className="border-b border-border bg-paper p-6 pb-0 flex-shrink-0">
           <DialogHeader className="mb-4">

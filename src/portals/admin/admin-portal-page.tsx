@@ -10,6 +10,7 @@ import { CajaPage } from "@/features/caja/components/caja-page";
 import { DocumentosPage } from "@/features/documentos/components/documentos-page";
 import { PortalPage } from "@/features/portal/components/portal-page";
 import { AgendaPage } from "@/features/agenda/components/agenda-page";
+import { PlanGate } from "@/shared/components/plan-gate";
 
 export function AdminPortalPage() {
   return (
@@ -26,7 +27,7 @@ export function AdminPortalPage() {
         <Route path="caja" element={<CajaPage />} />
         <Route path="documentos" element={<DocumentosPage />} />
         <Route path="agenda" element={<AgendaPage />} />
-        <Route path="portal" element={<PortalPage />} />
+        <Route path="portal" element={<PlanGate requiredPlan="pro" fullPage><PortalPage /></PlanGate>} />
       </Route>
     </Routes>
   );

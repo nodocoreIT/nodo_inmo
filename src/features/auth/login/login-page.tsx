@@ -36,7 +36,12 @@ export function LoginPage() {
     const { error: authError } = await signInWithPassword({ email, password });
 
     if (authError) {
-      setError(authError.message);
+      const msg = authError.message.toLowerCase();
+      if (msg.includes("banned") || msg.includes("user is banned")) {
+        setError("Tu acceso está pausado. Contactate con NODO para reactivarlo.");
+      } else {
+        setError("Credenciales incorrectas.");
+      }
       setLoading(false);
       return;
     }

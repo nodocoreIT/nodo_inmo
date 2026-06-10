@@ -15,6 +15,7 @@ import {
   Settings,
   Menu,
   X,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { BrandMark } from "@/shared/components/brand-mark";
@@ -29,7 +30,7 @@ import {
 } from "@/shared/components/ui/dialog";
 import { AgencyProfileForm } from "@/features/agency-profile/components/agency-profile-form";
 import { useSearchStore } from "@/shared/search/use-search-store";
-import { useAuth } from "@/app/auth/use-auth";
+import { useAuth, type PlanTier } from "@/app/auth/use-auth";
 import { cn } from "@/shared/lib/utils";
 import { SettingsDialog } from "./settings-dialog";
 import { FeedbackFAB } from "@/features/feedback/components/feedback-node";
@@ -42,6 +43,7 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   adminOnly?: boolean;
+  proOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -54,7 +56,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin/caja", label: "Caja", icon: Wallet, adminOnly: true },
   { to: "/admin/documentos", label: "Documentos", icon: FolderOpen },
   { to: "/admin/agenda", label: "Agenda y Tareas", icon: Calendar },
-  { to: "/admin/portal", label: "Navegar", icon: Building2 },
+  { to: "/admin/portal", label: "Portales", icon: Building2, proOnly: true },
 ];
 
 // Top-bar search placeholder per searchable route.
@@ -93,7 +95,7 @@ function initials(value: string): string {
 // ── Layout ────────────────────────────────────────────────────────────────────
 
 export function AdminLayout() {
-  const { user, role, signOut } = useAuth();
+  const { user, role, plan, signOut } = useAuth();
   const { pathname } = useLocation();
   const resetSearch = useSearchStore((s) => s.reset);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -164,24 +166,28 @@ export function AdminLayout() {
           className="flex flex-1 flex-col gap-1 px-3 py-4"
           aria-label="Navegación principal"
         >
-          {visibleNav.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={() => setMobileMenuOpen(false)}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-brand text-[var(--color-primary-foreground)]"
-                    : "text-[var(--color-sidebar-text)] hover:bg-brand/10 hover:text-brand",
-                )
-              }
-            >
-              <Icon className="h-4 w-4 flex-shrink-0" />
-              {label}
-            </NavLink>
-          ))}
+          {visibleNav.map(({ to, label, icon: Icon, proOnly }) => {
+            const locked = proOnly && plan !== "pro";
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={() => setMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-brand text-[var(--color-primary-foreground)]"
+                      : "text-[var(--color-sidebar-text)] hover:bg-brand/10 hover:text-brand",
+                  )
+                }
+              >
+                <Icon className="h-4 w-4 flex-shrink-0" />
+                <span className="flex-1">{label}</span>
+                {locked && <Lock className="h-3 w-3 opacity-50 flex-shrink-0" />}
+              </NavLink>
+            );
+          })}
 
           {/* Configuración sidebar option for admins */}
           {role === "admin" && (
