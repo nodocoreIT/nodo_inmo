@@ -30,7 +30,7 @@ import {
 } from "@/shared/components/ui/dialog";
 import { AgencyProfileForm } from "@/features/agency-profile/components/agency-profile-form";
 import { useSearchStore } from "@/shared/search/use-search-store";
-import { useAuth, type PlanTier } from "@/app/auth/use-auth";
+import { useAuth } from "@/app/auth/use-auth";
 import { cn } from "@/shared/lib/utils";
 import { SettingsDialog } from "./settings-dialog";
 import { FeedbackFAB } from "@/features/feedback/components/feedback-node";
