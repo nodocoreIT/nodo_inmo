@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { formatCurrencyInput, parseCurrencyInput } from "@/shared/lib/format-money";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,15 +30,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import { CreatableCombobox } from "@/shared/components/ui/creatable-combobox";
 import { useCreateCashMovement } from "@/features/caja/hooks/use-create-cash-movement";
-import { useCashAccounts } from "@/shared/hooks/use-cash-accounts";
+import { useUpdateCashMovement } from "@/features/caja/hooks/use-update-cash-movement";
+import { useConceptos, useCreateConcepto } from "@/features/caja/hooks/use-conceptos";
+import type { CashMovementRow } from "@/features/caja/hooks/use-cash-movements";
+import { useCashAccounts, type CashAccount } from "@/shared/hooks/use-cash-accounts";
 
 const schema = z.object({
   type: z.enum(["income", "expense"]),
   accountId: z.string().min(1, "Elegí una cuenta"),
   amount: z.string().min(1, "Monto requerido"),
   concept: z.string().min(1, "Concepto requerido"),
-  destination: z.string().optional(),
+  destinationAccountId: z.string().optional(),
   date: z.string().min(1, "Fecha requerida"),
 });
 
@@ -48,25 +52,70 @@ interface MovementFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  movement?: CashMovementRow | null;
+}
+
+function resolveAccountId(
+  movement: CashMovementRow,
+  accounts: CashAccount[],
+  field: "cash_account_id" | "destination_account_id",
+  labelField: "category" | "destination_category",
+): string {
+  const id = movement[field];
+  if (id) return id;
+  const label = movement[labelField];
+  if (!label) return "";
+  return accounts.find((a) => a.label === label)?.id ?? "";
+}
+
+function movementToFormValues(
+  movement: CashMovementRow,
+  accounts: CashAccount[],
+): FormValues {
+  const currency = (movement.currency as "ARS" | "USD") ?? "ARS";
+  return {
+    type: movement.type as "income" | "expense",
+    accountId: resolveAccountId(movement, accounts, "cash_account_id", "category"),
+    amount: formatCurrencyInput(String(Math.round(movement.amount)), currency),
+    concept: movement.concept,
+    destinationAccountId: resolveAccountId(
+      movement,
+      accounts,
+      "destination_account_id",
+      "destination_category",
+    ),
+    date: movement.date,
+  };
 }
 
 export function MovementFormDialog({
   open,
   onOpenChange,
   onSuccess,
+  movement,
 }: MovementFormDialogProps) {
-  const { mutateAsync, isPending } = useCreateCashMovement();
-  const { accounts } = useCashAccounts();
+  const isEdit = !!movement;
+  const createMovement = useCreateCashMovement();
+  const updateMovement = useUpdateCashMovement();
+  const { accounts, isLoading: accountsLoading } = useCashAccounts();
+  const { data: conceptos = [], isLoading: conceptosLoading } = useConceptos();
+  const createConcepto = useCreateConcepto();
   const today = new Date().toISOString().slice(0, 10);
+  const isPending = createMovement.isPending || updateMovement.isPending;
+
+  const conceptOptions = useMemo(
+    () => conceptos.map((c) => c.name),
+    [conceptos],
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as any,
     defaultValues: {
       type: "expense",
-      accountId: accounts[0]?.id ?? "",
+      accountId: "",
       amount: "",
       concept: "",
-      destination: "",
+      destinationAccountId: "",
       date: today,
     },
   });
@@ -75,12 +124,28 @@ export function MovementFormDialog({
   const selectedAccount = accounts.find((a) => a.id === accountId);
   const currency = selectedAccount?.currency ?? "ARS";
 
+  const destinationAccounts = useMemo(
+    () => accounts.filter((a) => a.id !== accountId),
+    [accounts, accountId],
+  );
+
   useEffect(() => {
-    if (!open) return;
-    if (!form.getValues("accountId") && accounts[0]) {
-      form.setValue("accountId", accounts[0].id);
+    if (!open || accountsLoading) return;
+
+    if (movement) {
+      form.reset(movementToFormValues(movement, accounts));
+      return;
     }
-  }, [open, accounts, form]);
+
+    form.reset({
+      type: "expense",
+      accountId: accounts[0]?.id ?? "",
+      amount: "",
+      concept: "",
+      destinationAccountId: "",
+      date: today,
+    });
+  }, [open, movement, accounts, accountsLoading, form, today]);
 
   useEffect(() => {
     const current = form.getValues("amount");
@@ -90,31 +155,45 @@ export function MovementFormDialog({
     }
   }, [currency, form]);
 
+  async function resolveConceptoId(conceptName: string): Promise<string | null> {
+    const trimmed = conceptName.trim();
+    const concepto = conceptos.find(
+      (c) => c.name.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (concepto) return concepto.id;
+    const created = await createConcepto.mutateAsync(trimmed);
+    return created.id;
+  }
+
   async function handleSubmit(values: FormValues) {
     const account = accounts.find((a) => a.id === values.accountId);
     if (!account) return;
 
-    const concept =
-      values.destination?.trim()
-        ? `${values.concept} → ${values.destination.trim()}`
-        : values.concept;
+    const destAccount = values.destinationAccountId
+      ? accounts.find((a) => a.id === values.destinationAccountId)
+      : undefined;
 
-    await mutateAsync({
+    const conceptoId = await resolveConceptoId(values.concept);
+
+    const payload = {
       type: values.type,
       amount: parseCurrencyInput(values.amount) || 0,
-      concept,
+      concept: values.concept.trim(),
       date: values.date,
       currency: account.currency,
       category: account.label,
-    });
-    form.reset({
-      type: "expense",
-      accountId: accounts[0]?.id ?? "",
-      amount: "",
-      concept: "",
-      destination: "",
-      date: today,
-    });
+      cash_account_id: account.id,
+      destination_account_id: destAccount?.id ?? null,
+      destination_category: destAccount?.label ?? null,
+      concepto_id: conceptoId,
+    };
+
+    if (isEdit && movement) {
+      await updateMovement.mutateAsync({ id: movement.id, ...payload });
+    } else {
+      await createMovement.mutateAsync(payload);
+    }
+
     onSuccess?.();
     onOpenChange(false);
   }
@@ -123,9 +202,11 @@ export function MovementFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nuevo movimiento</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar movimiento" : "Nuevo movimiento"}</DialogTitle>
           <DialogDescription>
-            Registrá un ingreso o egreso manual de la caja.
+            {isEdit
+              ? "Modificá los datos del movimiento manual."
+              : "Registrá un ingreso o egreso manual de la caja."}
           </DialogDescription>
         </DialogHeader>
 
@@ -162,7 +243,11 @@ export function MovementFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Cuenta</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={accountsLoading || accounts.length === 0}
+                    >
                       <FormControl>
                         <SelectTrigger aria-label="Cuenta">
                           <SelectValue placeholder="Elegí cuenta" />
@@ -211,13 +296,21 @@ export function MovementFormDialog({
               name="concept"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel htmlFor="concept-input">Concepto</FormLabel>
+                  <FormLabel htmlFor="concept-combobox">Concepto</FormLabel>
                   <FormControl>
-                    <Input
-                      id="concept-input"
+                    <CreatableCombobox
+                      id="concept-combobox"
                       aria-label="Concepto"
-                      placeholder="Ej: Gastos de oficina"
-                      {...field}
+                      options={conceptOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onCreateOption={async (name) => {
+                        await createConcepto.mutateAsync(name);
+                      }}
+                      isCreating={createConcepto.isPending}
+                      placeholder="Elegí o creá un concepto"
+                      searchPlaceholder="Buscar concepto..."
+                      disabled={conceptosLoading}
                     />
                   </FormControl>
                   <FormMessage />
@@ -227,18 +320,28 @@ export function MovementFormDialog({
 
             <FormField
               control={form.control as any}
-              name="destination"
+              name="destinationAccountId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel htmlFor="destination-input">Caja destino</FormLabel>
-                  <FormControl>
-                    <Input
-                      id="destination-input"
-                      aria-label="Caja destino"
-                      placeholder="Ej: Efectivo Pesos, Banco..."
-                      {...field}
-                    />
-                  </FormControl>
+                  <FormLabel>Caja destino</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value ?? ""}
+                    disabled={accountsLoading || destinationAccounts.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger aria-label="Caja destino">
+                        <SelectValue placeholder="Opcional — elegí cuenta destino" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {destinationAccounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -267,7 +370,7 @@ export function MovementFormDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending || accountsLoading}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Guardar
               </Button>

@@ -1,63 +1,175 @@
-import { create } from "zustand";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/shared/lib/supabase";
+import { useAuth } from "@/app/auth/use-auth";
+
+export const CASH_ACCOUNTS_QUERY_KEY = ["cash-accounts"] as const;
 
 export interface CashAccount {
   id: string;
   label: string;
   currency: "ARS" | "USD";
+  kind: "BANCO" | "EFECTIVO";
+  bank_name?: string | null;
+  alias?: string | null;
+  cbu?: string | null;
+  sort_order?: number;
 }
 
-export const DEFAULT_CASH_ACCOUNTS: CashAccount[] = [
-  { id: "cash-ars", label: "Efectivo Pesos (ARS)", currency: "ARS" },
-  { id: "cash-usd", label: "Efectivo Dólares (USD)", currency: "USD" },
-  { id: "transfer-ars", label: "Transferencia Pesos (ARS)", currency: "ARS" },
+export const DEFAULT_CASH_ACCOUNTS: Omit<CashAccount, "id">[] = [
+  { label: "Efectivo Pesos (ARS)", currency: "ARS", kind: "EFECTIVO", sort_order: 0 },
+  { label: "Efectivo Dólares (USD)", currency: "USD", kind: "EFECTIVO", sort_order: 1 },
+  { label: "Transferencia Pesos (ARS)", currency: "ARS", kind: "BANCO", sort_order: 2 },
 ];
 
-const STORAGE_KEY = "nodo-cash-accounts";
+const LEGACY_STORAGE_KEY = "nodo-cash-accounts";
 
-function loadAccounts(): CashAccount[] {
+function inferKind(label: string): "BANCO" | "EFECTIVO" {
+  return label.toLowerCase().includes("efectivo") ? "EFECTIVO" : "BANCO";
+}
+
+function mapRow(row: Record<string, unknown>): CashAccount {
+  return {
+    id: row.id as string,
+    label: row.label as string,
+    currency: row.currency as "ARS" | "USD",
+    kind: (row.kind as "BANCO" | "EFECTIVO") ?? inferKind(row.label as string),
+    bank_name: (row.bank_name as string | null) ?? null,
+    alias: (row.alias as string | null) ?? null,
+    cbu: (row.cbu as string | null) ?? null,
+    sort_order: (row.sort_order as number) ?? 0,
+  };
+}
+
+async function seedDefaults(orgId: string): Promise<CashAccount[]> {
+  const rows = DEFAULT_CASH_ACCOUNTS.map((a) => ({ ...a, org_id: orgId }));
+  const { data, error } = await supabase
+    .schema("nodo_inmo")
+    .from("cash_accounts")
+    .insert(rows)
+    .select();
+
+  if (error) throw error;
+  return (data ?? []).map(mapRow);
+}
+
+async function migrateLegacyLocalStorage(orgId: string): Promise<CashAccount[] | null> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as CashAccount[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
+    const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Array<{
+      id: string;
+      label: string;
+      currency: "ARS" | "USD";
+    }>;
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+
+    const rows = parsed.map((a, i) => ({
+      org_id: orgId,
+      label: a.label,
+      currency: a.currency,
+      kind: inferKind(a.label),
+      sort_order: i,
+    }));
+
+    const { data, error } = await supabase
+      .schema("nodo_inmo")
+      .from("cash_accounts")
+      .insert(rows)
+      .select();
+
+    if (error) throw error;
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    return (data ?? []).map(mapRow);
   } catch {
-    // ignore
+    return null;
   }
-  return DEFAULT_CASH_ACCOUNTS;
 }
 
-interface CashAccountsStore {
-  accounts: CashAccount[];
-  setAccounts: (accounts: CashAccount[]) => void;
-  addAccount: (account: Omit<CashAccount, "id">) => void;
-  removeAccount: (id: string) => void;
-  resetAccounts: () => void;
-}
+/** Fetch cash accounts for the org; seeds defaults on first use. */
+export function useCashAccounts() {
+  const { orgId } = useAuth();
+  const queryClient = useQueryClient();
 
-export const useCashAccounts = create<CashAccountsStore>((set) => ({
-  accounts: loadAccounts(),
-  setAccounts: (accounts) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
-    set({ accounts });
-  },
-  addAccount: (account) =>
-    set((state) => {
-      const next = [
-        ...state.accounts,
-        { ...account, id: `acct-${Date.now()}` },
-      ];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return { accounts: next };
-    }),
-  removeAccount: (id) =>
-    set((state) => {
-      const next = state.accounts.filter((a) => a.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return { accounts: next };
-    }),
-  resetAccounts: () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CASH_ACCOUNTS));
-    set({ accounts: DEFAULT_CASH_ACCOUNTS });
-  },
-}));
+  const query = useQuery<CashAccount[]>({
+    queryKey: [...CASH_ACCOUNTS_QUERY_KEY, orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+
+      const { data, error } = await supabase
+        .schema("nodo_inmo")
+        .from("cash_accounts")
+        .select("*")
+        .eq("org_id", orgId)
+        .order("sort_order", { ascending: true })
+        .order("label", { ascending: true });
+
+      if (error) throw error;
+      if (data && data.length > 0) return data.map(mapRow);
+
+      const migrated = await migrateLegacyLocalStorage(orgId);
+      if (migrated && migrated.length > 0) return migrated;
+
+      return seedDefaults(orgId);
+    },
+    enabled: !!orgId,
+    staleTime: 30_000,
+  });
+
+  const addAccount = useMutation({
+    mutationFn: async (
+      account: Omit<CashAccount, "id"> & {
+        bank_name?: string;
+        alias?: string;
+        cbu?: string;
+      },
+    ) => {
+      if (!orgId) throw new Error("No org_id");
+
+      const { data, error } = await supabase
+        .schema("nodo_inmo")
+        .from("cash_accounts")
+        .insert({
+          org_id: orgId,
+          label: account.label,
+          currency: account.currency,
+          kind: account.kind,
+          bank_name: account.bank_name ?? null,
+          alias: account.alias ?? null,
+          cbu: account.cbu ?? null,
+          sort_order: account.sort_order ?? 99,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return mapRow(data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CASH_ACCOUNTS_QUERY_KEY });
+    },
+  });
+
+  const removeAccount = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .schema("nodo_inmo")
+        .from("cash_accounts")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CASH_ACCOUNTS_QUERY_KEY });
+    },
+  });
+
+  return {
+    accounts: query.data ?? [],
+    isLoading: query.isLoading,
+    addAccount: addAccount.mutateAsync,
+    removeAccount: removeAccount.mutateAsync,
+    isAdding: addAccount.isPending,
+    isRemoving: removeAccount.isPending,
+  };
+}

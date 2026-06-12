@@ -17,6 +17,10 @@ vi.mock("@/features/caja/components/movement-form-dialog", () => ({
   MovementFormDialog: () => null,
 }));
 
+vi.mock("@/features/caja/hooks/use-delete-cash-movement", () => ({
+  useDeleteCashMovement: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
 import { CajaPage } from "@/features/caja/components/caja-page";
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -81,7 +85,15 @@ describe("CajaPage", () => {
   it("opens nuevo movimiento dialog", async () => {
     render(<CajaPage />, { wrapper });
     await userEvent.click(screen.getByRole("button", { name: /nuevo movimiento/i }));
-    // dialog mocked as null — button exists
     expect(screen.getByRole("button", { name: /nuevo movimiento/i })).toBeInTheDocument();
+  });
+
+  it("shows edit and delete actions only for manual movements", () => {
+    render(<CajaPage />, { wrapper });
+    expect(screen.getByRole("button", { name: /editar gastos oficina/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /eliminar gastos oficina/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /editar comisión cobro/i }),
+    ).not.toBeInTheDocument();
   });
 });

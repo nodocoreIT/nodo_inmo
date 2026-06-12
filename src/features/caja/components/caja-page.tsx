@@ -1,7 +1,17 @@
 import { useMemo, useState } from "react";
-import { Plus, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, Pencil, Trash2 } from "lucide-react";
 import { PaginationControls } from "@/shared/components/ui/pagination";
 import { Button } from "@/shared/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/shared/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -10,7 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
-import { useCashMovements } from "@/features/caja/hooks/use-cash-movements";
+import { useCashMovements, type CashMovementRow } from "@/features/caja/hooks/use-cash-movements";
+import { useDeleteCashMovement } from "@/features/caja/hooks/use-delete-cash-movement";
 import { MovementFormDialog } from "./movement-form-dialog";
 import { formatMoney, formatDate } from "@/features/contracts/lib/contract-labels";
 import { cn } from "@/shared/lib/utils";
@@ -27,7 +38,10 @@ type SortDir = "asc" | "desc";
 
 export function CajaPage() {
   const { data, isLoading, isError } = useCashMovements();
-  const [createOpen, setCreateOpen] = useState(false);
+  const deleteMovement = useDeleteCashMovement();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingMovement, setEditingMovement] = useState<CashMovementRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CashMovementRow | null>(null);
   const [page, setPage] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -108,7 +122,13 @@ export function CajaPage() {
           </a>
           .
         </p>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2 shrink-0">
+        <Button
+          onClick={() => {
+            setEditingMovement(null);
+            setFormOpen(true);
+          }}
+          className="gap-2 shrink-0"
+        >
           <Plus className="h-4 w-4" />
           Nuevo movimiento
         </Button>
@@ -227,6 +247,7 @@ export function CajaPage() {
                     Monto{sortMark("amount")}
                   </button>
                 </TableHead>
+                <TableHead className="w-28 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -254,6 +275,36 @@ export function CajaPage() {
                       {formatMoney(m.amount, m.currency)}
                     </span>
                   </TableCell>
+                  <TableCell className="text-right">
+                    {m.source === "manual" ? (
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Editar ${m.concept}`}
+                          className="h-8 w-8 p-0 text-slate2 hover:text-navy"
+                          onClick={() => {
+                            setEditingMovement(m);
+                            setFormOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Eliminar ${m.concept}`}
+                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                          disabled={deleteMovement.isPending}
+                          onClick={() => setDeleteTarget(m)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate2">—</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -272,10 +323,47 @@ export function CajaPage() {
       />
 
       <MovementFormDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onSuccess={() => setCreateOpen(false)}
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setEditingMovement(null);
+        }}
+        movement={editingMovement}
       />
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent className="mx-4 w-[calc(100%-2rem)] max-w-sm sm:mx-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este movimiento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se va a borrar &quot;{deleteTarget?.concept}&quot; del{" "}
+              {deleteTarget ? formatDate(deleteTarget.date) : ""}. Esta acción no se puede
+              deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMovement.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleteMovement.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!deleteTarget) return;
+                void deleteMovement.mutateAsync(deleteTarget.id).then(() => {
+                  setDeleteTarget(null);
+                });
+              }}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

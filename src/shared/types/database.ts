@@ -37,11 +37,15 @@ export type Database = {
       cash_movements: {
         Row: {
           amount: number
+          cash_account_id: string | null
           category: string | null
           concept: string
+          concepto_id: string | null
           created_at: string
           currency: string
           date: string
+          destination_account_id: string | null
+          destination_category: string | null
           id: string
           org_id: string
           owner_id: string | null
@@ -52,11 +56,15 @@ export type Database = {
         }
         Insert: {
           amount: number
+          cash_account_id?: string | null
           category?: string | null
           concept: string
+          concepto_id?: string | null
           created_at?: string
           currency?: string
           date?: string
+          destination_account_id?: string | null
+          destination_category?: string | null
           id?: string
           org_id: string
           owner_id?: string | null
@@ -67,11 +75,15 @@ export type Database = {
         }
         Update: {
           amount?: number
+          cash_account_id?: string | null
           category?: string | null
           concept?: string
+          concepto_id?: string | null
           created_at?: string
           currency?: string
           date?: string
+          destination_account_id?: string | null
+          destination_category?: string | null
           id?: string
           org_id?: string
           owner_id?: string | null
@@ -81,6 +93,27 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cash_movements_cash_account_id_fkey"
+            columns: ["cash_account_id"]
+            isOneToOne: false
+            referencedRelation: "cash_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_concepto_id_fkey"
+            columns: ["concepto_id"]
+            isOneToOne: false
+            referencedRelation: "conceptos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_movements_destination_account_id_fkey"
+            columns: ["destination_account_id"]
+            isOneToOne: false
+            referencedRelation: "cash_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cash_movements_owner_id_fkey"
             columns: ["owner_id"]
@@ -93,6 +126,85 @@ export type Database = {
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_accounts: {
+        Row: {
+          alias: string | null
+          bank_name: string | null
+          cbu: string | null
+          created_at: string
+          currency: string
+          id: string
+          kind: string
+          label: string
+          org_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          alias?: string | null
+          bank_name?: string | null
+          cbu?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          kind?: string
+          label: string
+          org_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          alias?: string | null
+          bank_name?: string | null
+          cbu?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          kind?: string
+          label?: string
+          org_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_accounts_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conceptos: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          org_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          org_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conceptos_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

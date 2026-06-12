@@ -20,13 +20,6 @@ import { useUpsertOrgProfile } from "@/features/agency-profile/hooks/use-upsert-
 import { useStaff } from "@/shared/hooks/use-staff";
 import { useCashAccounts } from "@/shared/hooks/use-cash-accounts";
 
-interface BankAccount {
-  id: string;
-  bankName: string;
-  alias: string;
-  cbu: string;
-}
-
 function LogoCustomUploader() {
   const { data: profile } = useOrgProfile();
   const { mutateAsync: uploadLogo, isPending: isUploading } = useUploadLogo();
@@ -127,17 +120,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { settings, setSettings, resetSettings } = useThemeSettings();
   const { accounts: cashAccounts, addAccount, removeAccount } = useCashAccounts();
 
-  // Dynamic Bank Accounts state
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-    {
-      id: "1",
-      bankName: "Banco Galicia",
-      alias: "NODO.GALICIA",
-      cbu: "0070001120000000123456",
-    },
-  ]);
   const [newBank, setNewBank] = useState({ bankName: "", alias: "", cbu: "" });
   const [isAddingBank, setIsAddingBank] = useState(false);
+
+  const bankAccounts = cashAccounts.filter((a) => a.kind === "BANCO" && a.cbu);
 
   // Dynamic Users state (mocked mapped to Node architecture logic)
   const { users, inviteUser } = useStaff();
@@ -149,23 +135,23 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [isInviting, setIsInviting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
 
-  const handleAddBank = (e: React.FormEvent) => {
+  const handleAddBank = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBank.bankName || !newBank.cbu) return;
-    setBankAccounts((prev) => [
-      ...prev,
-      { id: Date.now().toString(), ...newBank },
-    ]);
-    addAccount({
-      label: `${newBank.bankName} (ARS)`,
+    await addAccount({
+      label: `${newBank.bankName} Pesos (ARS)`,
       currency: "ARS",
+      kind: "BANCO",
+      bank_name: newBank.bankName,
+      alias: newBank.alias || undefined,
+      cbu: newBank.cbu,
     });
     setNewBank({ bankName: "", alias: "", cbu: "" });
     setIsAddingBank(false);
   };
 
-  const handleRemoveBank = (id: string) => {
-    setBankAccounts((prev) => prev.filter((b) => b.id !== id));
+  const handleRemoveBank = async (id: string) => {
+    await removeAccount(id);
   };
 
   const handleInviteUser = async (e: React.FormEvent) => {
@@ -350,7 +336,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     >
                       <div className="space-y-1">
                         <p className="font-bold text-navy text-sm">
-                          {account.bankName}
+                          {account.bank_name ?? account.label}
                         </p>
                         <p className="text-xs text-slate2">
                           <strong>Alias:</strong> {account.alias || "-"}
@@ -360,7 +346,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                         </p>
                       </div>
                       <button
-                        onClick={() => handleRemoveBank(account.id)}
+                        type="button"
+                        onClick={() => void handleRemoveBank(account.id)}
                         className="text-destructive hover:bg-destructive/10 p-1.5 rounded-md transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -376,11 +363,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
                 <div className="mt-6 space-y-3">
                   <h4 className="text-sm font-bold text-navy">
-                    Cuentas para comisiones (cobros)
+                    Todas las cuentas de caja
                   </h4>
                   <p className="text-xs text-slate2">
-                    Estas cuentas aparecen al registrar un cobro para elegir dónde
-                    va la comisión.
+                    Usadas en cobros, movimientos manuales y caja destino.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {cashAccounts.map((account) => (
@@ -388,12 +374,15 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                         key={account.id}
                         className="flex items-center justify-between rounded-md border border-border bg-card px-4 py-3"
                       >
-                        <span className="text-sm font-medium text-navy">
-                          {account.label}
-                        </span>
+                        <div>
+                          <span className="text-sm font-medium text-navy">
+                            {account.label}
+                          </span>
+                          <p className="text-xs text-slate2">{account.kind}</p>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => removeAccount(account.id)}
+                          onClick={() => void removeAccount(account.id)}
                           className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
                           aria-label={`Eliminar ${account.label}`}
                         >
