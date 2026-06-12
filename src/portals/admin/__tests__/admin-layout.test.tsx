@@ -69,14 +69,18 @@ describe("AdminLayout", () => {
     expect(screen.getByRole("link", { name: /pagos/i })).toBeInTheDocument();
   });
 
-  it("shows Caja link for admin role", () => {
+  it("shows Caja, Rendiciones and Ganancias links for admin role", () => {
     renderLayout("admin");
     expect(screen.getByRole("link", { name: /caja/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /rendiciones/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /ganancias/i })).toBeInTheDocument();
   });
 
-  it("hides Caja link for agent role", () => {
+  it("hides Caja, Rendiciones and Ganancias links for agent role", () => {
     renderLayout("agent");
     expect(screen.queryByRole("link", { name: /caja/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /rendiciones/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /ganancias/i })).not.toBeInTheDocument();
   });
 
   it("shows user email in top bar", () => {

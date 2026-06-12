@@ -23,15 +23,22 @@ export interface GenerateInput {
   end_date: string; // 'YYYY-MM-DD'
   rent_amount: number;
   currency: string;
+  /** Only generate installments through this month (inclusive). Defaults to today. */
+  as_of?: Date;
 }
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+export function currentMonthKeyFromDate(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
+}
+
 export function generateInstallments(input: GenerateInput): InstallmentDraft[] {
   const [sy, sm, sd] = input.start_date.split("-").map(Number);
   const end = new Date(`${input.end_date}T00:00:00Z`);
+  const asOfKey = currentMonthKeyFromDate(input.as_of ?? new Date());
 
   const drafts: InstallmentDraft[] = [];
   let year = sy;
@@ -39,6 +46,9 @@ export function generateInstallments(input: GenerateInput): InstallmentDraft[] {
 
   // Guard against malformed input / runaway loops (cap at 100 years).
   for (let i = 0; i < 1200; i++) {
+    const periodKey = `${year}-${pad(month)}`;
+    if (periodKey > asOfKey) break;
+
     const periodStart = new Date(Date.UTC(year, month - 1, 1));
     if (periodStart >= end) break;
 

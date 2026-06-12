@@ -11,6 +11,7 @@ describe("generateInstallments", () => {
       end_date: "2028-01-01",
       rent_amount: 250000,
       currency: "ARS",
+      as_of: new Date("2027-12-15"),
     });
     expect(out).toHaveLength(24); // Jan 2026 … Dec 2027
     expect(out[0]).toMatchObject({
@@ -51,12 +52,25 @@ describe("generateInstallments", () => {
     expect(out[2].due_date).toBe("2026-03-31");
   });
 
+  it("does not generate installments beyond the as_of month", () => {
+    const out = generateInstallments({
+      start_date: "2026-01-01",
+      end_date: "2028-01-01",
+      rent_amount: 250000,
+      currency: "ARS",
+      as_of: new Date("2026-06-15"),
+    });
+    expect(out).toHaveLength(6);
+    expect(out[out.length - 1].period).toBe("2026-06-01");
+  });
+
   it("crosses year boundaries correctly", () => {
     const out = generateInstallments({
       start_date: "2026-11-05",
       end_date: "2027-02-01",
       rent_amount: 100000,
       currency: "USD",
+      as_of: new Date("2027-01-15"),
     });
     expect(out.map((i) => i.period)).toEqual([
       "2026-11-01",

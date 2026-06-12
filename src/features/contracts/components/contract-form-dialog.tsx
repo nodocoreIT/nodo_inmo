@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -46,7 +46,7 @@ const schema = z.object({
   rent_amount: z.string().min(1, "Monto requerido"),
   currency: z.enum(["ARS", "USD"]),
   deposit_amount: z.string().optional(),
-  commission_amount: z.string().optional(),
+  commission_rate: z.string().optional(),
   expenses_paid_by: z.enum(["tenant", "owner"]),
   adjustment_index: z.enum(["IPC", "ICL", "fixed", "USD"]),
   adjustment_period_months: z.string().min(1, "Periodicidad requerida"),
@@ -55,7 +55,6 @@ const schema = z.object({
   // Phase C — contract generator metadata
   contract_type: z.enum(["habitacional", "comercial"]),
   signing_date: z.string().optional(),
-  signing_city: z.string().optional(),
 });
 
 export type ContractFormValues = z.infer<typeof schema>;
@@ -67,26 +66,36 @@ function toStr(v: number | string | null | undefined): string {
   return String(v);
 }
 
+function commissionRateFromContract(contract?: ContractWithRelations): string {
+  if (!contract?.commission_amount || !contract.rent_amount) return "10";
+  const rate = (contract.commission_amount / contract.rent_amount) * 100;
+  return String(Math.round(rate * 100) / 100);
+}
+
 function buildPayload(values: ContractFormValues, guarantorIds: string[]) {
+  const rent = parseCurrencyInput(values.rent_amount) || 0;
+  const rate = Number(values.commission_rate?.replace(",", ".") || 0);
+  const commissionAmount =
+    rent > 0 && rate > 0 ? Math.round((rent * rate) / 100) : null;
+
   return {
     property_id: values.property_id,
     tenant_id: values.tenant_id,
     start_date: values.start_date,
     end_date: values.end_date,
-    rent_amount: parseCurrencyInput(values.rent_amount) || 0,
+    rent_amount: rent,
     currency: values.currency,
     deposit_amount: parseCurrencyInput(values.deposit_amount),
-    commission_amount: parseCurrencyInput(values.commission_amount),
+    commission_amount: commissionAmount,
     expenses_paid_by: values.expenses_paid_by,
     adjustment_index: values.adjustment_index,
     adjustment_period_months: Number(values.adjustment_period_months),
     status: values.status,
     notes: values.notes || null,
     guarantor_ids: guarantorIds,
-    // Phase C — contract generator metadata
     contract_type: values.contract_type,
     signing_date: values.signing_date || null,
-    signing_city: values.signing_city || null,
+    signing_city: null,
   };
 }
 
@@ -131,7 +140,7 @@ export function ContractFormDialog({
       rent_amount: formatCurrencyInput(contract?.rent_amount, contract?.currency as any ?? "ARS"),
       currency: (contract?.currency as any) ?? "ARS",
       deposit_amount: formatCurrencyInput(contract?.deposit_amount, contract?.currency as any ?? "ARS"),
-      commission_amount: formatCurrencyInput(contract?.commission_amount, contract?.currency as any ?? "ARS"),
+      commission_rate: commissionRateFromContract(contract),
       expenses_paid_by: (contract?.expenses_paid_by as any) ?? "tenant",
       adjustment_index: (contract?.adjustment_index as any) ?? "IPC",
       adjustment_period_months: toStr(contract?.adjustment_period_months) || "12",
@@ -140,26 +149,29 @@ export function ContractFormDialog({
       // Phase C — contract generator metadata
       contract_type: (contract?.contract_type as any) ?? "habitacional",
       signing_date: contract?.signing_date ?? "",
-      signing_city: contract?.signing_city ?? "Ciudad Autónoma de Buenos Aires",
     },
   });
 
   const currency = form.watch("currency") || "ARS";
+  const rentAmount = form.watch("rent_amount") || "";
+  const commissionRate = form.watch("commission_rate") || "";
+  const computedCommission = useMemo(() => {
+    const rent = parseCurrencyInput(rentAmount) ?? 0;
+    const rate = Number(commissionRate.replace(",", "."));
+    if (!rent || !rate) return null;
+    return Math.round((rent * rate) / 100);
+  }, [rentAmount, commissionRate]);
   const prevCurrencyRef = useRef(currency);
   useEffect(() => {
     if (prevCurrencyRef.current !== currency) {
       const rent = form.getValues("rent_amount");
       const deposit = form.getValues("deposit_amount");
-      const commission = form.getValues("commission_amount");
 
       if (rent) {
         form.setValue("rent_amount", formatCurrencyInput(rent.replace(/\D/g, ""), currency));
       }
       if (deposit) {
         form.setValue("deposit_amount", formatCurrencyInput(deposit.replace(/\D/g, ""), currency));
-      }
-      if (commission) {
-        form.setValue("commission_amount", formatCurrencyInput(commission.replace(/\D/g, ""), currency));
       }
       prevCurrencyRef.current = currency;
     }
@@ -364,23 +376,29 @@ export function ContractFormDialog({
               />
               <FormField
                 control={form.control as any}
-                name="commission_amount"
+                name="commission_rate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel htmlFor="commission-input">Comisión</FormLabel>
+                    <FormLabel htmlFor="commission-input">Comisión (%)</FormLabel>
                     <FormControl>
                       <Input
                         id="commission-input"
-                        aria-label="Comisión"
+                        aria-label="Comisión porcentaje"
                         type="text"
-                        placeholder={currency === "ARS" ? "$ 0" : "US$ 0"}
+                        inputMode="decimal"
+                        placeholder="10"
                         value={field.value}
                         onChange={(e) => {
-                          const raw = e.target.value.replace(/\D/g, "");
-                          field.onChange(formatCurrencyInput(raw, currency));
+                          const raw = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
+                          field.onChange(raw);
                         }}
                       />
                     </FormControl>
+                    {computedCommission != null ? (
+                      <p className="text-xs text-slate2">
+                        ≈ {formatCurrencyInput(String(computedCommission), currency)} según el alquiler
+                      </p>
+                    ) : null}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -526,25 +544,6 @@ export function ContractFormDialog({
                   )}
                 />
               </div>
-              <FormField
-                control={form.control as any}
-                name="signing_city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel htmlFor="signing-city-input">Ciudad de firma</FormLabel>
-                    <FormControl>
-                      <Input
-                        id="signing-city-input"
-                        aria-label="Ciudad de firma"
-                        type="text"
-                        placeholder="Ciudad Autónoma de Buenos Aires"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
             {/* Guarantors (multi-select via checkboxes) */}

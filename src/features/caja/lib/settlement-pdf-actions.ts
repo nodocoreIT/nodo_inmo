@@ -13,7 +13,7 @@ import type { StatementData } from "./settlement-statement-data";
 import { slugifyOwnerName } from "./settlement-statement-data";
 
 /** Build the PDF blob from the statement data. Dynamic imports for bundle isolation. */
-async function buildBlob(data: StatementData): Promise<Blob> {
+export async function buildBlob(data: StatementData): Promise<Blob> {
   const [{ pdf }, { SettlementStatementDocument }] = await Promise.all([
     import("@react-pdf/renderer"),
     import("@/features/caja/components/settlement-statement-document"),
@@ -25,7 +25,7 @@ async function buildBlob(data: StatementData): Promise<Blob> {
 }
 
 /** Build the canonical filename for a settlement PDF. (R-C8) */
-function buildFilename(data: StatementData): string {
+export function buildFilename(data: StatementData): string {
   const slug = slugifyOwnerName(data.ownerName);
   return `liquidacion-${slug}-${data.currency}.pdf`;
 }

@@ -17,6 +17,8 @@ import { formatDate } from "@/features/contracts/lib/contract-labels";
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
+const BRAND = "#1a4d3e";
+
 const styles = StyleSheet.create({
   page: {
     fontFamily: "Helvetica",
@@ -32,8 +34,8 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 24,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomWidth: 2,
+    borderBottomColor: BRAND,
     borderBottomStyle: "solid",
   },
   headerLeft: {
@@ -48,7 +50,7 @@ const styles = StyleSheet.create({
   agencyName: {
     fontSize: 14,
     fontFamily: "Helvetica-Bold",
-    color: "#1a1a2e",
+    color: BRAND,
   },
   agencyDetail: {
     fontSize: 9,
@@ -62,7 +64,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontFamily: "Helvetica-Bold",
-    color: "#1a1a2e",
+    color: BRAND,
     marginBottom: 6,
   },
   subtitle: {

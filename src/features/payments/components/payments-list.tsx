@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { PAGE_SIZE } from "@/shared/lib/constants";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Check, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Pencil, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
   Table,
@@ -26,6 +26,7 @@ import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
 import { cn } from "@/shared/lib/utils";
 import { PaymentCollectDialog } from "./payment-collect-dialog";
+import { useDeletePayments, useAnnulPayment } from "../hooks/use-delete-payment";
 
 type Filter = "all" | "pending" | "overdue" | "paid";
 
@@ -59,6 +60,21 @@ export function PaymentsList() {
   const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [monthFilter, setMonthFilter] = useState<string>("");
   const [page, setPage] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const deletePayments = useDeletePayments();
+  const annulPayment = useAnnulPayment();
+
+  useEffect(() => {
+    const next: Filter =
+      statusParam === "overdue" || statusParam === "pending" || statusParam === "paid"
+        ? statusParam
+        : "all";
+    setFilter(next);
+  }, [statusParam]);
+
+  function isDeletable(status: EffectiveStatus): boolean {
+    return status === "pending" || status === "overdue";
+  }
 
   function resetPage() {
     setPage(0);
@@ -102,6 +118,38 @@ export function PaymentsList() {
 
   const totalPages = Math.ceil(filteredRows.length / PAGE_SIZE);
   const pagedRows = filteredRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const deletableOnPage = pagedRows.filter((p) => isDeletable(effectiveStatus(p)));
+  const allPageSelected =
+    deletableOnPage.length > 0 &&
+    deletableOnPage.every((p) => selectedIds.has(p.id));
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectPage() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) {
+        for (const p of deletableOnPage) next.delete(p.id);
+      } else {
+        for (const p of deletableOnPage) next.add(p.id);
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    await deletePayments.mutateAsync(ids);
+    setSelectedIds(new Set());
+  }
 
   function openCollectDialog(id: string) {
     setSearchParams((prev) => {
@@ -137,8 +185,35 @@ export function PaymentsList() {
           >
             {f.label}
           </button>
-        ))}
+        )        )}
       </div>
+
+      {selectedIds.size > 0 ? (
+        <div className="flex items-center gap-3 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-2">
+          <span className="text-sm text-navy">
+            {selectedIds.size} cuota{selectedIds.size === 1 ? "" : "s"} seleccionada
+            {selectedIds.size === 1 ? "" : "s"}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10"
+            disabled={deletePayments.isPending}
+            onClick={() => void handleBulkDelete()}
+          >
+            <Trash2 className="h-4 w-4" />
+            {deletePayments.isPending ? "Eliminando…" : "Eliminar seleccionadas"}
+          </Button>
+          <button
+            type="button"
+            className="text-xs text-slate2 underline-offset-2 hover:underline"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Deseleccionar
+          </button>
+        </div>
+      ) : null}
 
       {/* Advanced filters */}
       <div className="flex flex-wrap items-center gap-3">
@@ -223,6 +298,16 @@ export function PaymentsList() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-mist text-brand"
+                    checked={allPageSelected}
+                    disabled={deletableOnPage.length === 0}
+                    aria-label="Seleccionar cuotas de esta página"
+                    onChange={toggleSelectPage}
+                  />
+                </TableHead>
                 <TableHead>Período</TableHead>
                 <TableHead>Propiedad</TableHead>
                 <TableHead>Inquilino</TableHead>
@@ -236,8 +321,20 @@ export function PaymentsList() {
             <TableBody>
               {pagedRows.map((p) => {
                 const eff = effectiveStatus(p);
+                const canDelete = isDeletable(eff);
                 return (
                   <TableRow key={p.id}>
+                    <TableCell>
+                      {canDelete ? (
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-mist text-brand"
+                          checked={selectedIds.has(p.id)}
+                          aria-label={`Seleccionar cuota ${formatPeriod(p.period)}`}
+                          onChange={() => toggleSelect(p.id)}
+                        />
+                      ) : null}
+                    </TableCell>
                     <TableCell className="font-medium">{formatPeriod(p.period)}</TableCell>
                     <TableCell>{p.contract?.property?.address ?? "—"}</TableCell>
                     <TableCell>{p.contract?.tenant?.name ?? "—"}</TableCell>
@@ -246,31 +343,58 @@ export function PaymentsList() {
                     <TableCell>{formatMoney(p.amount, p.currency)}</TableCell>
                     <TableCell><StatusBadge status={eff} /></TableCell>
                     <TableCell className="text-right">
-                      {eff === "cancelled" ? (
-                        <span className="text-xs text-slate2">—</span>
-                      ) : eff === "paid" ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label="Modificar cobro"
-                          onClick={() => openCollectDialog(p.id)}
-                          className="gap-1 text-slate2 hover:text-navy"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          Editar
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label="Registrar cobro"
-                          onClick={() => openCollectDialog(p.id)}
-                          className="gap-1 text-green-700 hover:bg-green-50 hover:text-green-800"
-                        >
-                          <Check className="h-4 w-4" />
-                          Cobrar
-                        </Button>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        {eff === "cancelled" ? (
+                          <span className="text-xs text-slate2">—</span>
+                        ) : eff === "paid" ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Modificar cobro"
+                              onClick={() => openCollectDialog(p.id)}
+                              className="gap-1 text-slate2 hover:text-navy"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Editar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Anular cobro"
+                              disabled={annulPayment.isPending}
+                              onClick={() => openCollectDialog(p.id)}
+                              className="gap-1 text-destructive hover:bg-destructive/10"
+                            >
+                              <Undo2 className="h-4 w-4" />
+                              Anular
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Registrar cobro"
+                              onClick={() => openCollectDialog(p.id)}
+                              className="gap-1 text-green-700 hover:bg-green-50 hover:text-green-800"
+                            >
+                              <Check className="h-4 w-4" />
+                              Cobrar
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Eliminar cuota"
+                              disabled={deletePayments.isPending}
+                              onClick={() => void deletePayments.mutateAsync([p.id])}
+                              className="gap-1 text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

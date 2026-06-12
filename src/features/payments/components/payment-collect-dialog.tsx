@@ -390,7 +390,7 @@ export function PaymentCollectDialog({
           if (!open) setDeleteError(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="mx-4 w-[calc(100%-2rem)] max-w-sm sm:mx-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {payment?.status === "paid" ? "¿Anular este cobro?" : "¿Eliminar esta cuota?"}

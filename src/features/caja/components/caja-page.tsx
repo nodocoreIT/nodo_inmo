@@ -1,7 +1,6 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Plus, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { PaginationControls } from "@/shared/components/ui/pagination";
-import { Link, useSearchParams } from "react-router-dom";
-import { Plus, ArrowUpRight, ArrowDownRight, Download, Share2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
   Table,
@@ -12,32 +11,10 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { useCashMovements } from "@/features/caja/hooks/use-cash-movements";
-import { useOwnerSettlements } from "@/features/caja/hooks/use-owner-settlements";
-import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
-import { useLogoUrl } from "@/features/agency-profile/hooks/use-logo-url";
 import { MovementFormDialog } from "./movement-form-dialog";
-import {
-  computeTotals,
-  groupPendingByOwner,
-} from "@/features/caja/lib/caja-math";
-import {
-  buildStatementData,
-  type SealedBreakdown,
-} from "@/features/caja/lib/settlement-statement-data";
-import {
-  handleDownload,
-  handleShare,
-} from "@/features/caja/lib/settlement-pdf-actions";
-import {
-  formatMoney,
-  formatDate,
-} from "@/features/contracts/lib/contract-labels";
+import { formatMoney, formatDate } from "@/features/contracts/lib/contract-labels";
 import { cn } from "@/shared/lib/utils";
-import type { SettlementWithOwner } from "@/features/caja/hooks/use-owner-settlements";
-
 import { PAGE_SIZE } from "@/shared/lib/constants";
-
-type Tab = "movimientos" | "liquidaciones";
 
 const SOURCE_LABELS: Record<string, string> = {
   manual: "Manual",
@@ -45,192 +22,227 @@ const SOURCE_LABELS: Record<string, string> = {
   owner_payout: "Liquidación",
 };
 
+type SortKey = "date" | "concept" | "source" | "category" | "amount";
+type SortDir = "asc" | "desc";
+
 export function CajaPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const queryTab = searchParams.get("tab");
-  const initialTab: Tab = queryTab === "liquidaciones" ? "liquidaciones" : "movimientos";
-  const [tab, setTabState] = useState<Tab>(initialTab);
-
-  const setTab = (newTab: Tab) => {
-    setTabState(newTab);
-    setSearchParams((prev) => {
-      prev.set("tab", newTab);
-      return prev;
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap gap-2">
-        <TabButton
-          active={tab === "movimientos"}
-          onClick={() => setTab("movimientos")}
-        >
-          Movimientos
-        </TabButton>
-        <TabButton
-          active={tab === "liquidaciones"}
-          onClick={() => setTab("liquidaciones")}
-        >
-          Liquidaciones
-        </TabButton>
-      </div>
-
-      {tab === "movimientos" ? <MovementsTab /> : <SettlementsTab />}
-    </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-pill px-4 py-1.5 text-sm font-medium transition-colors",
-        active ? "bg-navy text-white" : "bg-mist text-slate2 hover:bg-mist/70",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  valueClass,
-  labelClass,
-}: {
-  label: string;
-  value: string;
-  valueClass: string;
-  labelClass?: string;
-}) {
-  return (
-    <div className="rounded-md border border-border bg-card px-5 py-4 shadow-sm">
-      <p
-        className={cn(
-          "text-xs font-bold uppercase tracking-wide",
-          labelClass ?? "text-slate2",
-        )}
-      >
-        {label}
-      </p>
-      <p className={cn("mt-1 text-2xl font-bold", valueClass)}>{value}</p>
-    </div>
-  );
-}
-
-// ── Movimientos ───────────────────────────────────────────────────────────────
-
-function MovementsTab() {
   const { data, isLoading, isError } = useCashMovements();
   const [createOpen, setCreateOpen] = useState(false);
   const [page, setPage] = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [filterDate, setFilterDate] = useState("");
+  const [filterConcept, setFilterConcept] = useState("");
+  const [filterSource, setFilterSource] = useState("");
+  const [filterAccount, setFilterAccount] = useState("");
+  const [filterType, setFilterType] = useState<"" | "income" | "expense">("");
 
   const movements = data ?? [];
-  const totalPages = Math.ceil(movements.length / PAGE_SIZE);
-  const pagedMovements = useMemo(
-    () => movements.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
-    [movements, page],
-  );
-  const { income, expense, balance } = computeTotals(movements);
+
+  const sources = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of movements) set.add(SOURCE_LABELS[m.source] ?? m.source);
+    return Array.from(set).sort();
+  }, [movements]);
+
+  const accounts = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of movements) {
+      if (m.category) set.add(m.category);
+    }
+    return Array.from(set).sort();
+  }, [movements]);
+
+  const filtered = useMemo(() => {
+    return movements.filter((m) => {
+      if (filterDate && m.date !== filterDate) return false;
+      if (filterConcept && !m.concept.toLowerCase().includes(filterConcept.toLowerCase()))
+        return false;
+      const src = SOURCE_LABELS[m.source] ?? m.source;
+      if (filterSource && src !== filterSource) return false;
+      if (filterAccount && (m.category ?? "") !== filterAccount) return false;
+      if (filterType && m.type !== filterType) return false;
+      return true;
+    });
+  }, [movements, filterDate, filterConcept, filterSource, filterAccount, filterType]);
+
+  const sorted = useMemo(() => {
+    const rows = [...filtered];
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "date") cmp = a.date.localeCompare(b.date);
+      else if (sortKey === "concept") cmp = a.concept.localeCompare(b.concept);
+      else if (sortKey === "source")
+        cmp = (SOURCE_LABELS[a.source] ?? a.source).localeCompare(
+          SOURCE_LABELS[b.source] ?? b.source,
+        );
+      else if (sortKey === "category")
+        cmp = (a.category ?? "").localeCompare(b.category ?? "");
+      else cmp = a.amount - b.amount;
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return rows;
+  }, [filtered, sortKey, sortDir]);
+
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const paged = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir(key === "date" ? "desc" : "asc");
+    }
+    setPage(0);
+  }
+
+  const sortMark = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ↑" : " ↓") : "");
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-end">
-        <Button onClick={() => setCreateOpen(true)} className="gap-2">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-slate2">
+          Los totales e historial detallado están en{" "}
+          <a href="/admin/ganancias" className="font-semibold text-brand hover:underline">
+            Ganancias
+          </a>
+          .
+        </p>
+        <Button onClick={() => setCreateOpen(true)} className="gap-2 shrink-0">
           <Plus className="h-4 w-4" />
           Nuevo movimiento
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Ingresos"
-          value={formatMoney(income, "ARS")}
-          valueClass="text-green-700"
-          labelClass="text-green-700"
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="date"
+          value={filterDate}
+          onChange={(e) => { setFilterDate(e.target.value); setPage(0); }}
+          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+          aria-label="Filtrar por fecha"
         />
-        <StatCard
-          label="Egresos"
-          value={formatMoney(expense, "ARS")}
-          valueClass="text-destructive"
-          labelClass="text-destructive"
+        <input
+          type="text"
+          value={filterConcept}
+          onChange={(e) => { setFilterConcept(e.target.value); setPage(0); }}
+          placeholder="Concepto"
+          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
         />
-        <StatCard
-          label="Saldo de caja"
-          value={formatMoney(balance, "ARS")}
-          valueClass={balance >= 0 ? "text-navy" : "text-destructive"}
-        />
+        <select
+          value={filterSource}
+          onChange={(e) => { setFilterSource(e.target.value); setPage(0); }}
+          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+          aria-label="Filtrar por origen"
+        >
+          <option value="">Todos los orígenes</option>
+          {sources.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <select
+          value={filterAccount}
+          onChange={(e) => { setFilterAccount(e.target.value); setPage(0); }}
+          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+          aria-label="Filtrar por cuenta"
+        >
+          <option value="">Todas las cuentas</option>
+          {accounts.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
+        <select
+          value={filterType}
+          onChange={(e) => { setFilterType(e.target.value as "" | "income" | "expense"); setPage(0); }}
+          className="rounded-md border border-border bg-card px-3 py-1.5 text-sm"
+          aria-label="Filtrar por tipo"
+        >
+          <option value="">Ingreso y egreso</option>
+          <option value="income">Solo ingresos</option>
+          <option value="expense">Solo egresos</option>
+        </select>
+        {(filterDate || filterConcept || filterSource || filterAccount || filterType) && (
+          <button
+            type="button"
+            className="text-xs text-slate2 underline-offset-2 hover:underline"
+            onClick={() => {
+              setFilterDate("");
+              setFilterConcept("");
+              setFilterSource("");
+              setFilterAccount("");
+              setFilterType("");
+              setPage(0);
+            }}
+          >
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       {isLoading && (
-        <div
-          role="status"
-          aria-label="Cargando caja"
-          className="flex items-center justify-center py-16"
-        >
+        <div role="status" className="flex justify-center py-16">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-          <span className="sr-only">Cargando…</span>
         </div>
       )}
 
       {isError && (
-        <div
-          role="alert"
-          className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
+        <p role="alert" className="text-sm text-destructive">
           Error al cargar la caja. Intentá de nuevo.
-        </div>
+        </p>
       )}
 
       {!isLoading && !isError && movements.length === 0 && (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-mist py-16 text-center">
-          <p className="text-sm font-medium text-slate2">
-            Todavía no hay movimientos
-          </p>
-          <p className="text-xs text-slate2-300">
-            Los cobros generan ingresos automáticamente, o cargá uno manual.
-          </p>
+        <div className="rounded-md border border-dashed border-mist py-16 text-center text-sm text-slate2">
+          Todavía no hay movimientos. Los cobros generan ingresos automáticamente.
         </div>
       )}
 
-      {!isLoading && !isError && movements.length > 0 && (
+      {!isLoading && !isError && sorted.length > 0 && (
         <div className="rounded-md border border-border bg-card shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Concepto</TableHead>
-                <TableHead>Origen</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
+                <TableHead>
+                  <button type="button" className="font-semibold" onClick={() => toggleSort("date")}>
+                    Fecha{sortMark("date")}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button type="button" className="font-semibold" onClick={() => toggleSort("concept")}>
+                    Concepto{sortMark("concept")}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button type="button" className="font-semibold" onClick={() => toggleSort("source")}>
+                    Origen{sortMark("source")}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button type="button" className="font-semibold" onClick={() => toggleSort("category")}>
+                    Cuenta{sortMark("category")}
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button type="button" className="font-semibold" onClick={() => toggleSort("amount")}>
+                    Monto{sortMark("amount")}
+                  </button>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pagedMovements.map((m) => (
+              {paged.map((m) => (
                 <TableRow key={m.id}>
                   <TableCell>{formatDate(m.date)}</TableCell>
                   <TableCell className="font-medium">{m.concept}</TableCell>
                   <TableCell className="text-slate2">
                     {SOURCE_LABELS[m.source] ?? m.source}
                   </TableCell>
+                  <TableCell className="text-slate2">{m.category ?? "—"}</TableCell>
                   <TableCell className="text-right">
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 font-medium",
-                        m.type === "income"
-                          ? "text-green-700"
-                          : "text-destructive",
+                        m.type === "income" ? "text-green-700" : "text-destructive",
                       )}
                     >
                       {m.type === "income" ? (
@@ -252,7 +264,7 @@ function MovementsTab() {
       <PaginationControls
         page={page}
         totalPages={totalPages}
-        total={movements.length}
+        total={sorted.length}
         pageSize={PAGE_SIZE}
         itemLabel="movimientos"
         onPrev={() => setPage((p) => p - 1)}
@@ -264,192 +276,6 @@ function MovementsTab() {
         onOpenChange={setCreateOpen}
         onSuccess={() => setCreateOpen(false)}
       />
-    </div>
-  );
-}
-
-// ── Liquidaciones ─────────────────────────────────────────────────────────────
-
-/** Group settled settlements by owner_id:currency for the comprobante section. */
-interface SealedGroup {
-  owner_id: string;
-  owner_name: string;
-  currency: string;
-  breakdown: SealedBreakdown;
-  settled_date: string;
-}
-
-function groupSealedByOwner(settlements: SettlementWithOwner[]): SealedGroup[] {
-  const map = new Map<string, SealedGroup>();
-
-  for (const s of settlements) {
-    if (s.status !== "settled") continue;
-    if (!s.breakdown) continue;
-
-    const key = `${s.owner_id}:${s.currency}`;
-    if (map.has(key)) continue; // use first row (all rows in a batch carry the same breakdown)
-
-    const breakdown = s.breakdown as unknown as SealedBreakdown;
-    map.set(key, {
-      owner_id: s.owner_id,
-      owner_name: s.owner?.name ?? "—",
-      currency: s.currency,
-      breakdown,
-      settled_date: s.settled_date ?? "",
-    });
-  }
-
-  return Array.from(map.values());
-}
-
-/** Inner component that has access to profile + logo and renders the comprobante actions. */
-function SealedSettlementActions({ group }: { group: SealedGroup }) {
-  const { data: agency } = useOrgProfile();
-  const { data: logoUrl } = useLogoUrl(agency?.logo_path);
-
-  const canShare =
-    typeof navigator !== "undefined" &&
-    typeof navigator.canShare === "function" &&
-    navigator.canShare({ files: [new File([], "test.pdf", { type: "application/pdf" })] });
-
-  function buildData() {
-    return buildStatementData({
-      breakdown: group.breakdown,
-      agency: agency ?? null,
-      logoUrl: logoUrl ?? null,
-      ownerName: group.owner_name,
-      settledDate: group.settled_date,
-    });
-  }
-
-  return (
-    <div className="flex items-center justify-end gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        className="gap-1.5"
-        onClick={() => void handleDownload(buildData())}
-      >
-        <Download className="h-3.5 w-3.5" />
-        Descargar
-      </Button>
-      {canShare && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => void handleShare(buildData())}
-        >
-          <Share2 className="h-3.5 w-3.5" />
-          Compartir
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function SettlementsTab() {
-  const { data, isLoading, isError } = useOwnerSettlements();
-
-  const allSettlements = data ?? [];
-  const pendingGroups = groupPendingByOwner(allSettlements);
-  const sealedGroups = groupSealedByOwner(allSettlements);
-
-  const hasPending = pendingGroups.length > 0;
-  const hasSealed = sealedGroups.length > 0;
-
-  return (
-    <div className="flex flex-col gap-6">
-      {isLoading && (
-        <div
-          role="status"
-          aria-label="Cargando liquidaciones"
-          className="flex items-center justify-center py-16"
-        >
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-          <span className="sr-only">Cargando…</span>
-        </div>
-      )}
-
-      {isError && (
-        <div
-          role="alert"
-          className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          Error al cargar las liquidaciones. Intentá de nuevo.
-        </div>
-      )}
-
-      {!isLoading && !isError && !hasPending && !hasSealed && (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-mist py-16 text-center">
-          <p className="text-sm font-medium text-slate2">
-            No hay liquidaciones pendientes
-          </p>
-          <p className="text-xs text-slate2-300">
-            Cuando cobres alquileres de propiedades con dueño, acá vas a ver
-            cuánto liquidarle.
-          </p>
-        </div>
-      )}
-
-      {/* ── Pending settlements — redirect to Rendiciones page ─────────────── */}
-      {!isLoading && !isError && hasPending && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-5 py-4">
-          <p className="text-sm font-semibold text-amber-900">
-            Tenés {pendingGroups.length} rendición
-            {pendingGroups.length === 1 ? "" : "es"} pendiente
-            {pendingGroups.length === 1 ? "" : "s"} a propietarios.
-          </p>
-          <p className="mt-1 text-sm text-amber-800">
-            Imprimí el PDF y finalizá cada entrega desde la pantalla de rendiciones.
-          </p>
-          <Link
-            to="/admin/rendiciones"
-            className="mt-3 inline-flex rounded-sm bg-brand px-4 py-2 text-xs font-bold uppercase text-white hover:opacity-90"
-          >
-            Ir a rendiciones
-          </Link>
-        </div>
-      )}
-
-      {/* ── Sealed settlements — Comprobante actions ───────────────────────── */}
-      {!isLoading && !isError && hasSealed && (
-        <div className="rounded-md border border-border bg-card shadow-sm">
-          <div className="border-b border-border px-4 py-3">
-            <p className="text-sm font-semibold text-slate2">
-              Liquidaciones realizadas
-            </p>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Propietario</TableHead>
-                <TableHead>Moneda</TableHead>
-                <TableHead className="text-right">Neto liquidado</TableHead>
-                <TableHead className="text-right">Fecha</TableHead>
-                <TableHead className="text-right">Comprobante</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sealedGroups.map((g) => (
-                <TableRow key={`${g.owner_id}:${g.currency}`}>
-                  <TableCell className="font-medium">{g.owner_name}</TableCell>
-                  <TableCell>{g.currency}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatMoney(g.breakdown.net, g.currency)}
-                  </TableCell>
-                  <TableCell className="text-right text-slate2">
-                    {formatDate(g.settled_date)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <SealedSettlementActions group={g} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
     </div>
   );
 }

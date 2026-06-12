@@ -130,19 +130,14 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* Past month debts — yellow banner */}
-      <section className="rounded-md border border-amber-200 bg-amber-50 px-5 py-4">
-        <div className="flex items-start gap-2">
-          <History className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-amber-900">
-              Deudas de meses anteriores
-            </h2>
-            {pastMonthDebts.length === 0 ? (
-              <p className="mt-2 text-sm text-amber-800">
-                No hay deudas de meses anteriores.
-              </p>
-            ) : (
+      {pastMonthDebts.length > 0 ? (
+        <section className="rounded-md border border-amber-200 bg-amber-50 px-5 py-4">
+          <div className="flex items-start gap-2">
+            <History className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-amber-900">
+                Deudas de meses anteriores
+              </h2>
               <ul className="mt-2 space-y-1 text-sm text-amber-900">
                 {pastMonthDebts.map((debt) => (
                   <li key={debt.id}>
@@ -154,10 +149,10 @@ export function DashboardPage() {
                   </li>
                 ))}
               </ul>
-            )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       {/* Current month collections */}
       <MonthCollectionsSection items={currentMonthCollections} />

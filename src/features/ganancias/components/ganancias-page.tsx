@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, FileText, Share2, Wallet } from "lucide-react";
+import { ArrowLeft, Eye, FileText, Share2, Wallet } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
   Table,
@@ -10,17 +10,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/components/ui/dialog";
 import { useCashMovements } from "@/features/caja/hooks/use-cash-movements";
 import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
 import { formatMoney } from "@/features/contracts/lib/contract-labels";
 import {
   buildMonthlyBalance,
   formatPeriodTitle,
+  type CategoryTotals,
 } from "../lib/monthly-balance";
 import {
   downloadMonthlyReport,
   shareMonthlyReport,
 } from "../lib/monthly-report-pdf";
+import { MonthlyReportPdfViewer } from "./monthly-report-pdf-viewer";
 import { cn } from "@/shared/lib/utils";
 
 function currentPeriodYm(): string {
@@ -28,11 +36,25 @@ function currentPeriodYm(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function formatCategoryTotals(t: CategoryTotals): string {
+  const parts: string[] = [];
+  if (t.ars !== 0) parts.push(formatMoney(t.ars, "ARS"));
+  if (t.usd !== 0) parts.push(formatMoney(t.usd, "USD"));
+  if (parts.length === 0) return formatMoney(0, "ARS");
+  return parts.join(" · ");
+}
+
+function amountClass(value: number | null): string {
+  if (value == null || value === 0) return "text-slate2";
+  return value < 0 ? "text-destructive font-semibold" : "text-green-700 font-semibold";
+}
+
 export function GananciasPage() {
   const { data: movements = [], isLoading, isError } = useCashMovements();
   const { data: agency } = useOrgProfile();
   const [periodYm, setPeriodYm] = useState(currentPeriodYm);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const months = useMemo(() => {
     const set = new Set<string>();
@@ -46,28 +68,31 @@ export function GananciasPage() {
     [movements, periodYm],
   );
 
+  const reportData = useMemo(
+    () => ({
+      agencyName: agency?.legal_name ?? "NODO INMO",
+      address: agency?.address ?? "",
+      periodLabel: formatPeriodTitle(periodYm),
+      periodYm,
+      summary,
+    }),
+    [agency, periodYm, summary],
+  );
+
   async function handlePdf(download: boolean) {
     setPdfLoading(true);
     try {
-      const data = {
-        agencyName: agency?.legal_name ?? "NODO INMO",
-        address: agency?.address ?? "",
-        periodLabel: formatPeriodTitle(periodYm),
-        periodYm,
-        summary,
-      };
-      if (download) await downloadMonthlyReport(data);
-      else await shareMonthlyReport(data);
+      if (download) await downloadMonthlyReport(reportData);
+      else await shareMonthlyReport(reportData);
     } finally {
       setPdfLoading(false);
     }
   }
 
   const cards = [
-    { label: "Adm. Alquileres", value: summary.admAlquileres, color: "border-green-500" },
-    { label: "Contratos / Renov.", value: summary.contratos, color: "border-blue-500" },
-    { label: "Ventas Inmob.", value: summary.ventas, color: "border-amber-500" },
-    { label: "Dirección Obra", value: summary.direccionObra, color: "border-slate-400" },
+    { label: "Adm. Alquileres", totals: summary.admAlquileres, color: "border-green-500" },
+    { label: "Contratos / Renov.", totals: summary.contratos, color: "border-blue-500" },
+    { label: "Ventas Inmob.", totals: summary.ventas, color: "border-amber-500" },
   ];
 
   return (
@@ -97,6 +122,15 @@ export function GananciasPage() {
               </option>
             ))}
           </select>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={() => setPreviewOpen(true)}
+          >
+            <Eye className="h-4 w-4" />
+            Ver PDF
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -140,9 +174,9 @@ export function GananciasPage() {
       )}
 
       {!isLoading && !isError && (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_280px]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_300px]">
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {cards.map((card) => (
                 <div
                   key={card.label}
@@ -154,8 +188,8 @@ export function GananciasPage() {
                   <p className="text-2xs font-bold uppercase text-slate2">
                     {card.label}
                   </p>
-                  <p className="mt-1 text-lg font-bold text-navy">
-                    {formatMoney(card.value, "ARS")}
+                  <p className="mt-1 text-base font-bold text-navy">
+                    {formatCategoryTotals(card.totals)}
                   </p>
                 </div>
               ))}
@@ -168,13 +202,23 @@ export function GananciasPage() {
               <div className="mt-2 flex flex-wrap gap-6">
                 <div>
                   <p className="text-2xs text-slate2">Pesos</p>
-                  <p className="text-2xl font-bold text-navy">
+                  <p
+                    className={cn(
+                      "text-2xl font-bold",
+                      summary.netoArs < 0 ? "text-destructive" : "text-navy",
+                    )}
+                  >
                     {formatMoney(summary.netoArs, "ARS")}
                   </p>
                 </div>
                 <div>
                   <p className="text-2xs text-slate2">Dólares</p>
-                  <p className="text-2xl font-bold text-brand">
+                  <p
+                    className={cn(
+                      "text-2xl font-bold",
+                      summary.netoUsd < 0 ? "text-destructive" : "text-brand",
+                    )}
+                  >
                     {formatMoney(summary.netoUsd, "USD")}
                   </p>
                 </div>
@@ -193,6 +237,7 @@ export function GananciasPage() {
                     <TableHead>Fecha</TableHead>
                     <TableHead>Detalle / Concepto</TableHead>
                     <TableHead>Origen</TableHead>
+                    <TableHead>Cuenta</TableHead>
                     <TableHead className="text-right">Monto ARS</TableHead>
                     <TableHead className="text-right">Monto U$S</TableHead>
                   </TableRow>
@@ -200,14 +245,16 @@ export function GananciasPage() {
                 <TableBody>
                   {summary.movements.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-slate2">
+                      <TableCell colSpan={6} className="text-center text-slate2">
                         Sin movimientos en este período.
                       </TableCell>
                     </TableRow>
                   ) : (
                     summary.movements.map((m) => (
                       <TableRow key={m.id}>
-                        <TableCell>{m.date.split("-").reverse().join("/").slice(0, 5)}</TableCell>
+                        <TableCell>
+                          {m.date.split("-").reverse().join("/").slice(0, 5)}
+                        </TableCell>
                         <TableCell className="max-w-xs truncate font-medium">
                           {m.detail}
                         </TableCell>
@@ -216,15 +263,12 @@ export function GananciasPage() {
                             {m.origin}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
-                          {m.amountArs != null
-                            ? formatMoney(m.amountArs, "ARS")
-                            : "-"}
+                        <TableCell className="text-slate2">{m.account}</TableCell>
+                        <TableCell className={cn("text-right", amountClass(m.amountArs))}>
+                          {m.amountArs != null ? formatMoney(m.amountArs, "ARS") : "-"}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {m.amountUsd != null
-                            ? formatMoney(m.amountUsd, "USD")
-                            : "-"}
+                        <TableCell className={cn("text-right", amountClass(m.amountUsd))}>
+                          {m.amountUsd != null ? formatMoney(m.amountUsd, "USD") : "-"}
                         </TableCell>
                       </TableRow>
                     ))
@@ -236,22 +280,23 @@ export function GananciasPage() {
 
           <aside className="space-y-4">
             <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-              <h3 className="text-xs font-bold uppercase text-slate2">
-                Saldos en cuenta
-              </h3>
+              <h3 className="text-sm font-bold text-navy">Saldos en Cuenta</h3>
               <div className="mt-3 space-y-2">
                 {summary.accountBalances.map((a) => (
                   <div
                     key={`${a.label}-${a.currency}`}
-                    className="rounded-md border border-border bg-mist/30 px-3 py-2"
+                    className={cn(
+                      "rounded-md border border-border bg-card px-3 py-2.5 shadow-sm",
+                      "border-l-4",
+                      a.currency === "USD" ? "border-l-amber-500" : "border-l-navy",
+                    )}
                   >
-                    <p className="text-2xs font-bold uppercase text-slate2">
-                      {a.label}
-                    </p>
+                    <p className="text-xs font-bold uppercase text-navy">{a.label}</p>
+                    <p className="text-2xs uppercase text-slate2">{a.kind}</p>
                     <p
                       className={cn(
-                        "text-base font-bold",
-                        a.currency === "USD" ? "text-brand" : "text-navy",
+                        "mt-1 text-lg font-bold",
+                        a.currency === "USD" ? "text-amber-700" : "text-navy",
                       )}
                     >
                       {formatMoney(a.balance, a.currency)}
@@ -261,22 +306,44 @@ export function GananciasPage() {
               </div>
             </div>
 
-            <div className="rounded-md border border-brand/30 bg-brand/5 p-4">
-              <h3 className="text-xs font-bold uppercase text-navy">
+            <div className="rounded-md border border-border bg-card p-5 text-center shadow-sm">
+              <p className="text-2xs font-bold uppercase tracking-wide text-slate2">
                 Disponibilidad acumulada
-              </h3>
-              <p className="mt-2 text-sm text-slate2">Total en pesos</p>
-              <p className="text-xl font-bold text-navy">
+              </p>
+              <p
+                className={cn(
+                  "mt-3 text-2xl font-bold",
+                  summary.totalArs < 0 ? "text-destructive" : "text-navy",
+                )}
+              >
                 {formatMoney(summary.totalArs, "ARS")}
               </p>
-              <p className="mt-3 text-sm text-slate2">Total en dólares</p>
-              <p className="text-xl font-bold text-brand">
+              <p className="text-2xs uppercase text-slate2">Total en pesos</p>
+              <div className="my-3 border-t border-dashed border-border" />
+              <p
+                className={cn(
+                  "text-2xl font-bold",
+                  summary.totalUsd < 0 ? "text-destructive" : "text-amber-700",
+                )}
+              >
                 {formatMoney(summary.totalUsd, "USD")}
               </p>
+              <p className="text-2xs uppercase text-slate2">Total en dólares</p>
             </div>
           </aside>
         </div>
       )}
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6">
+            <DialogTitle>Balance mensual — {formatPeriodTitle(periodYm)}</DialogTitle>
+          </DialogHeader>
+          <div className="h-[70vh] px-2 pb-4">
+            <MonthlyReportPdfViewer data={reportData} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

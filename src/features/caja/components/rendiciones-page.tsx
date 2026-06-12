@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, FileText, CheckCheck, HandCoins, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, CheckCheck, HandCoins, Loader2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -16,7 +22,8 @@ import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
 import { useLogoUrl } from "@/features/agency-profile/hooks/use-logo-url";
 import { groupPendingByOwner } from "@/features/caja/lib/caja-math";
 import { buildPendingStatementData } from "@/features/caja/lib/pending-settlement-pdf";
-import { handleDownload } from "@/features/caja/lib/settlement-pdf-actions";
+import type { StatementData } from "@/features/caja/lib/settlement-statement-data";
+import { SettlementPdfViewer } from "./settlement-pdf-viewer";
 import { formatMoney } from "@/features/contracts/lib/contract-labels";
 import { cn } from "@/shared/lib/utils";
 
@@ -25,14 +32,16 @@ export function RendicionesPage() {
   const settleOwner = useSettleOwner();
   const { data: agency } = useOrgProfile();
   const { data: logoUrl } = useLogoUrl(agency?.logo_path);
-  const [pdfLoadingKey, setPdfLoadingKey] = useState<string | null>(null);
+  const [previewLoadingKey, setPreviewLoadingKey] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewStatement, setPreviewStatement] = useState<StatementData | null>(null);
 
   const allSettlements = data ?? [];
   const pendingGroups = groupPendingByOwner(allSettlements);
 
-  async function handlePdf(group: (typeof pendingGroups)[number]) {
+  async function openPreview(group: (typeof pendingGroups)[number]) {
     const key = `${group.owner_id}:${group.currency}`;
-    setPdfLoadingKey(key);
+    setPreviewLoadingKey(key);
     try {
       const statement = await buildPendingStatementData(
         group,
@@ -40,9 +49,10 @@ export function RendicionesPage() {
         agency ?? null,
         logoUrl ?? null,
       );
-      await handleDownload(statement);
+      setPreviewStatement(statement);
+      setPreviewOpen(true);
     } finally {
-      setPdfLoadingKey(null);
+      setPreviewLoadingKey(null);
     }
   }
 
@@ -109,7 +119,7 @@ export function RendicionesPage() {
             <TableBody>
               {pendingGroups.map((group) => {
                 const rowKey = `${group.owner_id}:${group.currency}`;
-                const isPdfLoading = pdfLoadingKey === rowKey;
+                const isPreviewLoading = previewLoadingKey === rowKey;
 
                 return (
                   <TableRow key={rowKey}>
@@ -129,16 +139,18 @@ export function RendicionesPage() {
                       <div className="flex flex-col items-end gap-2">
                         <Button
                           size="sm"
-                          className="w-full gap-1.5 bg-brand text-xs font-bold uppercase hover:opacity-90"
-                          disabled={isPdfLoading}
-                          onClick={() => void handlePdf(group)}
+                          variant="outline"
+                          className="w-full gap-1.5 text-xs font-bold uppercase"
+                          disabled={isPreviewLoading}
+                          aria-label={`Ver PDF de ${group.owner_name}`}
+                          onClick={() => void openPreview(group)}
                         >
-                          {isPdfLoading ? (
+                          {isPreviewLoading ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
-                            <FileText className="h-3.5 w-3.5" />
+                            <Eye className="h-3.5 w-3.5" />
                           )}
-                          PDF
+                          Ver PDF
                         </Button>
                         <Button
                           variant="outline"
@@ -169,6 +181,23 @@ export function RendicionesPage() {
           </Table>
         </div>
       )}
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="flex h-[85vh] max-w-4xl flex-col gap-0 p-0">
+          <DialogHeader className="border-b border-border px-6 py-4">
+            <DialogTitle>
+              {previewStatement
+                ? `Liquidación — ${previewStatement.ownerName}`
+                : "Vista previa PDF"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 p-4">
+            {previewStatement ? (
+              <SettlementPdfViewer data={previewStatement} />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

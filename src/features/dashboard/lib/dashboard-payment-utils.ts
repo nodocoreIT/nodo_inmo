@@ -1,4 +1,3 @@
-import { effectiveStatus } from "@/features/payments/lib/payment-labels";
 import type { PaymentWithRelations } from "@/features/payments/hooks/use-payments";
 
 export type CollectionStatus = "sin_cobrar" | "pago_parcial";
@@ -46,8 +45,7 @@ export function isPastMonthPayment(
   today: Date = new Date(),
 ): boolean {
   if (!isUnpaidPayment(payment)) return false;
-  const eff = effectiveStatus(payment, today);
-  if (eff === "paid" || eff === "cancelled") return false;
+  if (remainingAmount(payment) <= 0) return false;
   return monthKey(payment.due_date) < currentMonthKey(today);
 }
 
@@ -56,6 +54,7 @@ export function isCurrentMonthPayment(
   today: Date = new Date(),
 ): boolean {
   if (!isUnpaidPayment(payment)) return false;
+  if (remainingAmount(payment) <= 0) return false;
   return monthKey(payment.due_date) === currentMonthKey(today);
 }
 

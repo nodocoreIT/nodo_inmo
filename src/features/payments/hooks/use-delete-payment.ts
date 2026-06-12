@@ -4,6 +4,29 @@ import { PAYMENTS_QUERY_KEY } from "./use-payments";
 import { OWNER_SETTLEMENTS_QUERY_KEY } from "@/features/caja/hooks/use-owner-settlements";
 import { CASH_MOVEMENTS_QUERY_KEY } from "@/features/caja/hooks/use-cash-movements";
 
+/** Hard-delete multiple unpaid installments. */
+export function useDeletePayments() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (paymentIds: string[]) => {
+      if (paymentIds.length === 0) return;
+      const { error } = await supabase
+        .schema("nodo_inmo")
+        .from("payments")
+        .delete()
+        .in("id", paymentIds);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PAYMENTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: OWNER_SETTLEMENTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CASH_MOVEMENTS_QUERY_KEY });
+    },
+  });
+}
+
 /** Hard-delete an unpaid installment (no cobro posted yet). */
 export function useDeletePayment() {
   const queryClient = useQueryClient();

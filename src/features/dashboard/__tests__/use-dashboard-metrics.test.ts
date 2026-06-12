@@ -339,6 +339,32 @@ describe("useDashboardMetrics", () => {
     expect(result.current.pastMonthDebts[0].monthLabel).toBe("04/2026");
   });
 
+    it("groups current month partial payments with pago_parcial status", () => {
+    mockUsePayments.mockReturnValue({
+      data: [
+        makePayment({
+          id: "p-1",
+          due_date: "2026-06-10",
+          status: "pending",
+          amount: 1000,
+          paid_amount: 400,
+          contract: {
+            property: { address: "Mitre 100" },
+            tenant: { name: "Juan Pérez" },
+          },
+        }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+
+    const { result } = renderHook(() => useDashboardMetrics(FIXED_TODAY));
+
+    expect(result.current.currentMonthCollections).toHaveLength(1);
+    expect(result.current.currentMonthCollections[0].status).toBe("pago_parcial");
+    expect(result.current.currentMonthCollections[0].balance).toBe(600);
+  });
+
   it("groups current month unpaid installments by tenant and property", () => {
     mockUsePayments.mockReturnValue({
       data: [

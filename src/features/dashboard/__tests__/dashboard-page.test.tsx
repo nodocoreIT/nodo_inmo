@@ -159,6 +159,14 @@ describe("DashboardPage", () => {
     expect(screen.getByText("Sin cobrar")).toBeInTheDocument();
   });
 
+  it("hides the past-debts banner when there are no debts", () => {
+    mockUseDashboardMetrics.mockReturnValue(
+      resolvedMetrics({ pastMonthDebts: [] }),
+    );
+    renderWithRouter(<DashboardPage />);
+    expect(screen.queryByText("Deudas de meses anteriores")).not.toBeInTheDocument();
+  });
+
   it("never calls useOwnerSettlements or useContracts directly", () => {
     mockUseDashboardMetrics.mockReturnValue(resolvedMetrics());
     renderWithRouter(<DashboardPage />);

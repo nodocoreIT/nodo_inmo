@@ -5,6 +5,7 @@ export interface MonthlyMovementRow {
   date: string;
   detail: string;
   origin: string;
+  account: string;
   amountArs: number | null;
   amountUsd: number | null;
 }
@@ -13,13 +14,18 @@ export interface AccountBalance {
   label: string;
   currency: "ARS" | "USD";
   balance: number;
+  kind: "BANCO" | "EFECTIVO";
+}
+
+export interface CategoryTotals {
+  ars: number;
+  usd: number;
 }
 
 export interface MonthlyBalanceSummary {
-  admAlquileres: number;
-  contratos: number;
-  ventas: number;
-  direccionObra: number;
+  admAlquileres: CategoryTotals;
+  contratos: CategoryTotals;
+  ventas: CategoryTotals;
   netoArs: number;
   netoUsd: number;
   movements: MonthlyMovementRow[];
@@ -38,12 +44,23 @@ function monthKey(dateStr: string): string {
   return dateStr.slice(0, 7);
 }
 
-function movementDetail(m: CashMovementRow): string {
-  return m.concept;
-}
-
 function signedAmount(m: CashMovementRow): number {
   return m.type === "income" ? m.amount : -m.amount;
+}
+
+function accountKind(label: string): "BANCO" | "EFECTIVO" {
+  const lower = label.toLowerCase();
+  if (lower.includes("efectivo")) return "EFECTIVO";
+  return "BANCO";
+}
+
+function addToCategory(
+  target: CategoryTotals,
+  amount: number,
+  currency: string,
+): void {
+  if (currency === "USD") target.usd += amount;
+  else target.ars += amount;
 }
 
 export function buildMonthlyBalance(
@@ -52,13 +69,15 @@ export function buildMonthlyBalance(
 ): MonthlyBalanceSummary {
   const inMonth = movements.filter((m) => monthKey(m.date) === periodYm);
 
-  let admAlquileres = 0;
-  let manualIncome = 0;
+  const admAlquileres: CategoryTotals = { ars: 0, usd: 0 };
+  const contratos: CategoryTotals = { ars: 0, usd: 0 };
+  const ventas: CategoryTotals = { ars: 0, usd: 0 };
 
   for (const m of inMonth) {
     if (m.type !== "income") continue;
-    if (m.source === "commission") admAlquileres += m.amount;
-    if (m.source === "manual") manualIncome += m.amount;
+    const signed = signedAmount(m);
+    if (m.source === "commission") addToCategory(admAlquileres, signed, m.currency);
+    if (m.source === "manual") addToCategory(contratos, signed, m.currency);
   }
 
   const netoArs = inMonth
@@ -74,7 +93,12 @@ export function buildMonthlyBalance(
     const label = m.category ?? "Sin cuenta";
     const currency = m.currency as "ARS" | "USD";
     const key = `${label}:${currency}`;
-    const prev = accountMap.get(key) ?? { label, currency, balance: 0 };
+    const prev = accountMap.get(key) ?? {
+      label,
+      currency,
+      balance: 0,
+      kind: accountKind(label),
+    };
     prev.balance += signedAmount(m);
     accountMap.set(key, prev);
   }
@@ -92,16 +116,16 @@ export function buildMonthlyBalance(
 
   return {
     admAlquileres,
-    contratos: 0,
-    ventas: 0,
-    direccionObra: manualIncome,
+    contratos,
+    ventas,
     netoArs,
     netoUsd,
     movements: inMonth.map((m) => ({
       id: m.id,
       date: m.date,
-      detail: movementDetail(m),
+      detail: m.concept,
       origin: ORIGIN_LABEL[m.source] ?? m.source,
+      account: m.category ?? "—",
       amountArs: m.currency === "ARS" ? signedAmount(m) : null,
       amountUsd: m.currency === "USD" ? signedAmount(m) : null,
     })),

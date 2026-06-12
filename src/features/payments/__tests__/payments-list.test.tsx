@@ -22,6 +22,7 @@ vi.mock("@/features/payments/hooks/use-update-payment", () => ({
 
 vi.mock("@/features/payments/hooks/use-delete-payment", () => ({
   useDeletePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeletePayments: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAnnulPayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   assignCommissionAccount: vi.fn(),
 }));

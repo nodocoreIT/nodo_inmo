@@ -98,19 +98,15 @@ describe("ContractFormDialog — edit mode", () => {
     expect(screen.getByLabelText(/luis díaz/i)).not.toBeChecked();
   });
 
-  it("renders the Datos del contrato section with contract_type, signing_date, and signing_city", () => {
+  it("renders the Datos del contrato section with contract_type and signing_date", () => {
     render(
       <ContractFormDialog open onOpenChange={vi.fn()} contract={contract} onSubmit={vi.fn()} />,
       { wrapper },
     );
     expect(screen.getAllByText(/datos del contrato/i).length).toBeGreaterThan(0);
-    // FormLabel text present
     expect(screen.getByText(/tipo de contrato/i)).toBeInTheDocument();
     expect(screen.getByText(/fecha de firma/i)).toBeInTheDocument();
-    expect(screen.getByText(/ciudad de firma/i)).toBeInTheDocument();
-    // Inputs accessible
     expect(screen.getByLabelText(/fecha de firma/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/ciudad de firma/i)).toBeInTheDocument();
   });
 
   it("defaults contract_type to habitacional", () => {

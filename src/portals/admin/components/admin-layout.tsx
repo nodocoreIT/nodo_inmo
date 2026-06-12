@@ -15,6 +15,8 @@ import {
   Settings,
   Menu,
   X,
+  HandCoins,
+  LineChart,
   Lock,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
@@ -54,6 +56,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin/contracts", label: "Contratos", icon: FileText },
   { to: "/admin/payments", label: "Pagos", icon: CreditCard },
   { to: "/admin/caja", label: "Caja", icon: Wallet, adminOnly: true },
+  { to: "/admin/rendiciones", label: "Rendiciones", icon: HandCoins, adminOnly: true },
+  { to: "/admin/ganancias", label: "Ganancias", icon: LineChart, adminOnly: true },
   { to: "/admin/documentos", label: "Documentos", icon: FolderOpen },
   { to: "/admin/agenda", label: "Agenda y Tareas", icon: Calendar },
   { to: "/admin/portal", label: "Portales", icon: Building2, proOnly: true },

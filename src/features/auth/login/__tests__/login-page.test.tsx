@@ -108,7 +108,7 @@ describe("LoginPage", () => {
 
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     expect(screen.getByRole("alert")).toHaveTextContent(
-      /invalid login credentials/i,
+      /credenciales incorrectas/i,
     );
   });
 

@@ -32,7 +32,7 @@ export function RecentReceiptsSection({ items }: RecentReceiptsSectionProps) {
           </h2>
         </div>
         <Link
-          to="/admin/payments?status=paid"
+          to="/admin/payments"
           className="text-xs font-semibold text-brand hover:underline"
         >
           Ver historial completo
