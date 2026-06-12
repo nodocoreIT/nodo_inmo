@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/shared/lib/supabase";
 import { useAuth } from "@/app/auth/use-auth";
-import { generateInstallments } from "@/features/payments/lib/generate-installments";
+import { syncContractInstallments } from "@/features/payments/lib/sync-contract-installments";
 import { PAYMENTS_QUERY_KEY } from "./use-payments";
 
 export interface GenerateInstallmentsInput {
@@ -10,6 +9,7 @@ export interface GenerateInstallmentsInput {
   end_date: string;
   rent_amount: number;
   currency: string;
+  status?: string;
 }
 
 /**
@@ -25,26 +25,14 @@ export function useGenerateInstallments() {
     mutationFn: async (contract: GenerateInstallmentsInput) => {
       if (!orgId) throw new Error("No org_id — user not fully provisioned");
 
-      const drafts = generateInstallments(contract);
-      if (drafts.length === 0) return { inserted: 0 };
-
-      const rows = drafts.map((d) => ({
-        org_id: orgId,
-        contract_id: contract.contract_id,
-        period: d.period,
-        due_date: d.due_date,
-        amount: d.amount,
-        currency: d.currency,
-        status: d.status,
-      }));
-
-      const { error } = await supabase
-        .schema("nodo_inmo")
-        .from("payments")
-        .upsert(rows, { onConflict: "contract_id,period", ignoreDuplicates: true });
-
-      if (error) throw error;
-      return { inserted: rows.length };
+      return syncContractInstallments(orgId, {
+        id: contract.contract_id,
+        start_date: contract.start_date,
+        end_date: contract.end_date,
+        rent_amount: contract.rent_amount,
+        currency: contract.currency,
+        status: contract.status ?? "active",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PAYMENTS_QUERY_KEY });

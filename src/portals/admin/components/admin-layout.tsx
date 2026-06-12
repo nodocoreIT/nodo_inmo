@@ -150,12 +150,12 @@ export function AdminLayout() {
       {/* ── Sidebar (Responsive: Sidebar on Desktop, Drawer on Mobile) ── */}
       <aside
         className={cn(
-          "fixed bottom-0 top-0 left-0 z-50 flex w-60 flex-shrink-0 flex-col bg-[var(--color-sidebar-bg)] transition-transform duration-300 ease-in-out border-r border-border md:static md:z-auto md:translate-x-0 md:flex",
+          "fixed bottom-0 top-0 left-0 z-50 flex h-screen w-60 flex-shrink-0 flex-col bg-[var(--color-sidebar-bg)] transition-transform duration-300 ease-in-out border-r border-border md:static md:z-auto md:translate-x-0 md:flex",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Brand mark */}
-        <div className="flex h-16 items-center justify-between px-5">
+        <div className="flex h-16 flex-shrink-0 items-center justify-between px-5">
           <BrandMark onDark iconClassName="h-6 w-6" />
           <button
             type="button"
@@ -167,51 +167,53 @@ export function AdminLayout() {
           </button>
         </div>
 
-        {/* Nav */}
+        {/* Nav — scrollable middle section */}
         <nav
-          className="flex flex-1 flex-col gap-1 px-3 py-4"
+          className="flex-1 overflow-y-auto px-3 py-4"
           aria-label="Navegación principal"
         >
-          {visibleNav.map(({ to, label, icon: Icon, proOnly }) => {
-            const locked = proOnly && plan !== "pro";
-            return (
-              <NavLink
-                key={to}
-                to={to}
-                onClick={() => setMobileMenuOpen(false)}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-brand text-[var(--color-primary-foreground)]"
-                      : "text-[var(--color-sidebar-text)] hover:bg-brand/10 hover:text-brand",
-                  )
-                }
-              >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                <span className="flex-1">{label}</span>
-                {locked && <Lock className="h-3 w-3 opacity-50 flex-shrink-0" />}
-              </NavLink>
-            );
-          })}
+          <div className="flex flex-col gap-1">
+            {visibleNav.map(({ to, label, icon: Icon, proOnly }) => {
+              const locked = proOnly && plan !== "pro";
+              return (
+                <NavLink
+                  key={to}
+                  to={to}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-brand text-[var(--color-primary-foreground)]"
+                        : "text-[var(--color-sidebar-text)] hover:bg-brand/10 hover:text-brand",
+                    )
+                  }
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="flex-1">{label}</span>
+                  {locked && <Lock className="h-3 w-3 opacity-50 flex-shrink-0" />}
+                </NavLink>
+              );
+            })}
+          </div>
+        </nav>
 
-          {/* Configuración sidebar option for admins */}
+        {/* Bottom: configuración + user — always visible */}
+        <div className="flex-shrink-0 border-t border-[var(--color-sidebar-border)] p-3">
           {role === "admin" && (
             <button
+              type="button"
               onClick={() => {
                 setMobileMenuOpen(false);
                 setSettingsOpen(true);
               }}
-              className="flex items-center gap-3 rounded-sm px-3 py-2 text-sm font-medium transition-colors text-[var(--color-sidebar-text)] hover:bg-brand/10 hover:text-brand mt-auto w-full text-left"
+              className="mb-2 flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm font-medium text-[var(--color-sidebar-text)] transition-colors hover:bg-brand/10 hover:text-brand"
             >
               <Settings className="h-4 w-4 flex-shrink-0" />
               Configuración
             </button>
           )}
-        </nav>
 
-        {/* User block pinned to the bottom */}
-        <div className="border-t border-[var(--color-sidebar-border)] p-3">
           <div className="flex items-center gap-3 px-1 py-1">
             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
               {initials(displayName)}

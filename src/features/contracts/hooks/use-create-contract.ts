@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/shared/lib/supabase";
 import { useAuth } from "@/app/auth/use-auth";
 import type { Database } from "@/shared/types/database";
+import { syncContractInstallments } from "@/features/payments/lib/sync-contract-installments";
+import { PAYMENTS_QUERY_KEY } from "@/features/payments/hooks/use-payments";
 import { CONTRACTS_QUERY_KEY } from "./use-contracts";
 
 type ContractInsert = Database["nodo_inmo"]["Tables"]["contracts"]["Insert"];
@@ -43,10 +45,20 @@ export function useCreateContract() {
         if (linkError) throw linkError;
       }
 
+      await syncContractInstallments(orgId, {
+        id: contract.id,
+        start_date: contract.start_date,
+        end_date: contract.end_date,
+        rent_amount: contract.rent_amount,
+        currency: contract.currency,
+        status: contract.status,
+      });
+
       return contract;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: CONTRACTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: PAYMENTS_QUERY_KEY });
     },
   });
 }

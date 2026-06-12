@@ -187,6 +187,7 @@ export function ContractsList() {
                             end_date: contract.end_date,
                             rent_amount: contract.rent_amount,
                             currency: contract.currency,
+                            status: contract.status,
                           })
                         }
                       >

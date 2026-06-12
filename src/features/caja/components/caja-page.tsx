@@ -276,34 +276,30 @@ export function CajaPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    {m.source === "manual" ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Editar ${m.concept}`}
-                          className="h-8 w-8 p-0 text-slate2 hover:text-navy"
-                          onClick={() => {
-                            setEditingMovement(m);
-                            setFormOpen(true);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Eliminar ${m.concept}`}
-                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                          disabled={deleteMovement.isPending}
-                          onClick={() => setDeleteTarget(m)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate2">—</span>
-                    )}
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Editar ${m.concept}`}
+                        className="h-8 w-8 p-0 text-slate2 hover:text-navy"
+                        onClick={() => {
+                          setEditingMovement(m);
+                          setFormOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Eliminar ${m.concept}`}
+                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                        disabled={deleteMovement.isPending}
+                        onClick={() => setDeleteTarget(m)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -339,11 +335,23 @@ export function CajaPage() {
       >
         <AlertDialogContent className="mx-4 w-[calc(100%-2rem)] max-w-sm sm:mx-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar este movimiento?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteTarget?.payment_id ? "¿Anular este cobro?" : "¿Eliminar este movimiento?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Se va a borrar &quot;{deleteTarget?.concept}&quot; del{" "}
-              {deleteTarget ? formatDate(deleteTarget.date) : ""}. Esta acción no se puede
-              deshacer.
+              {deleteTarget?.payment_id ? (
+                <>
+                  Se va a anular el cobro &quot;{deleteTarget.concept}&quot; del{" "}
+                  {formatDate(deleteTarget.date)}. La cuota vuelve a pendiente y se elimina la
+                  comisión de caja y la rendición asociada.
+                </>
+              ) : (
+                <>
+                  Se va a borrar &quot;{deleteTarget?.concept}&quot; del{" "}
+                  {deleteTarget ? formatDate(deleteTarget.date) : ""}. Esta acción no se puede
+                  deshacer.
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -354,12 +362,12 @@ export function CajaPage() {
               onClick={(e) => {
                 e.preventDefault();
                 if (!deleteTarget) return;
-                void deleteMovement.mutateAsync(deleteTarget.id).then(() => {
+                void deleteMovement.mutateAsync(deleteTarget).then(() => {
                   setDeleteTarget(null);
                 });
               }}
             >
-              Eliminar
+              {deleteTarget?.payment_id ? "Anular cobro" : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

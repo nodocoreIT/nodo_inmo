@@ -144,7 +144,7 @@ export function ContractFormDialog({
       expenses_paid_by: (contract?.expenses_paid_by as any) ?? "tenant",
       adjustment_index: (contract?.adjustment_index as any) ?? "IPC",
       adjustment_period_months: toStr(contract?.adjustment_period_months) || "12",
-      status: (contract?.status as any) ?? "draft",
+      status: (contract?.status as any) ?? "active",
       notes: contract?.notes ?? "",
       // Phase C — contract generator metadata
       contract_type: (contract?.contract_type as any) ?? "habitacional",

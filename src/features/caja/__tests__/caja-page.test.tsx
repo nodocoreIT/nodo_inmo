@@ -88,12 +88,15 @@ describe("CajaPage", () => {
     expect(screen.getByRole("button", { name: /nuevo movimiento/i })).toBeInTheDocument();
   });
 
-  it("shows edit and delete actions only for manual movements", () => {
+  it("shows edit and delete actions for all movements", () => {
     render(<CajaPage />, { wrapper });
     expect(screen.getByRole("button", { name: /editar gastos oficina/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /eliminar gastos oficina/i })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /editar comisión cobro/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /editar comisión cobro 01\/2026/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /eliminar comisión cobro 01\/2026/i }),
+    ).toBeInTheDocument();
   });
 });

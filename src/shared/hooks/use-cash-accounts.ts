@@ -23,6 +23,18 @@ export const DEFAULT_CASH_ACCOUNTS: Omit<CashAccount, "id">[] = [
 
 const LEGACY_STORAGE_KEY = "nodo-cash-accounts";
 
+function seededKey(orgId: string): string {
+  return `nodo-cash-accounts-seeded-${orgId}`;
+}
+
+function markSeeded(orgId: string): void {
+  localStorage.setItem(seededKey(orgId), "1");
+}
+
+function isSeeded(orgId: string): boolean {
+  return localStorage.getItem(seededKey(orgId)) === "1";
+}
+
 function inferKind(label: string): "BANCO" | "EFECTIVO" {
   return label.toLowerCase().includes("efectivo") ? "EFECTIVO" : "BANCO";
 }
@@ -79,6 +91,7 @@ async function migrateLegacyLocalStorage(orgId: string): Promise<CashAccount[] |
 
     if (error) throw error;
     localStorage.removeItem(LEGACY_STORAGE_KEY);
+    markSeeded(orgId);
     return (data ?? []).map(mapRow);
   } catch {
     return null;
@@ -106,10 +119,15 @@ export function useCashAccounts() {
       if (error) throw error;
       if (data && data.length > 0) return data.map(mapRow);
 
+      // Org already initialized — respect empty list after user deletions.
+      if (isSeeded(orgId)) return [];
+
       const migrated = await migrateLegacyLocalStorage(orgId);
       if (migrated && migrated.length > 0) return migrated;
 
-      return seedDefaults(orgId);
+      const seeded = await seedDefaults(orgId);
+      markSeeded(orgId);
+      return seeded;
     },
     enabled: !!orgId,
     staleTime: 30_000,

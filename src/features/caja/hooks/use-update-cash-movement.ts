@@ -7,7 +7,7 @@ type CashMovementUpdate = Database["nodo_inmo"]["Tables"]["cash_movements"]["Upd
 
 export type UpdateCashMovementInput = CashMovementUpdate & { id: string };
 
-/** Update a manual cash movement. */
+/** Update any cash movement (manual, commission, owner payout). */
 export function useUpdateCashMovement() {
   const queryClient = useQueryClient();
 
@@ -18,7 +18,6 @@ export function useUpdateCashMovement() {
         .from("cash_movements")
         .update(input)
         .eq("id", id)
-        .eq("source", "manual")
         .select()
         .single();
 
