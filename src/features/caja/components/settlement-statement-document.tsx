@@ -230,12 +230,13 @@ export function SettlementStatementDocument(props: StatementData) {
 
         {/* ── Title + meta ────────────────────────────────────────────────── */}
         <View style={styles.titleSection}>
-          <Text style={styles.title}>Comprobante de liquidación</Text>
-          <Text style={styles.subtitle}>Propietario: {ownerName}</Text>
-          <Text style={styles.subtitle}>
-            Liquidación al {formatDate(settledDate)}
+          <Text style={styles.title}>
+            Liquidación de Cobranzas y Rendición de Cuentas
           </Text>
-          <Text style={styles.subtitle}>Moneda: {currency}</Text>
+          <Text style={styles.subtitle}>PROPIETARIO: {ownerName}</Text>
+          <Text style={styles.subtitle}>
+            FECHA DE EMISIÓN: {formatDate(settledDate)}
+          </Text>
         </View>
 
         {/* ── Breakdown table ─────────────────────────────────────────────── */}
@@ -293,7 +294,7 @@ export function SettlementStatementDocument(props: StatementData) {
 
           {/* Net total (bold, highlighted) */}
           <View style={styles.tableRowTotal}>
-            <Text style={styles.cellLabelBold}>Neto a liquidar</Text>
+            <Text style={styles.cellLabelBold}>SALDO NETO A PERCIBIR</Text>
             <Text style={styles.cellAmountBold}>
               {fmtAmount(breakdown.net, currency)}
             </Text>

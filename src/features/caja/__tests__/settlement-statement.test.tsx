@@ -458,7 +458,7 @@ describe("CajaPage — Comprobante actions (R-C7 / R-C9 / R-C10 / R-C12)", () =>
     await waitFor(() => expect(mockHandleDownload).toHaveBeenCalledOnce());
   });
 
-  it("no regressions — pending settlements still show Liquidar button", async () => {
+  it("no regressions — pending settlements link to rendiciones page", async () => {
     const PENDING = [
       {
         id: "s3",
@@ -482,6 +482,6 @@ describe("CajaPage — Comprobante actions (R-C7 / R-C9 / R-C10 / R-C12)", () =>
     render(<CajaPage />, { wrapper: makeWrapper() });
     await userEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
 
-    expect(screen.getByRole("button", { name: "Liquidar" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /ir a rendiciones/i })).toBeInTheDocument();
   });
 });

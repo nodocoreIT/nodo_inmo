@@ -64,26 +64,13 @@ describe("CajaPage", () => {
     expect(screen.getByText("Comisión cobro 01/2026")).toBeInTheDocument();
   });
 
-  it("shows pending settlements grouped by owner on the Liquidaciones tab", async () => {
+  it("links to rendiciones for pending settlements on the Liquidaciones tab", async () => {
     render(<CajaPage />, { wrapper });
     await userEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
-    expect(screen.getByText("Juan")).toBeInTheDocument();
-    expect(screen.getByText("$ 450.000")).toBeInTheDocument(); // 225000 + 225000
-  });
-
-  it("settles an owner with the grouped settlement ids and total", async () => {
-    render(<CajaPage />, { wrapper });
-    await userEvent.click(screen.getByRole("button", { name: "Liquidaciones" }));
-    await userEvent.click(screen.getByRole("button", { name: "Liquidar" }));
-
-    expect(mockSettleMutate).toHaveBeenCalledOnce();
-    expect(mockSettleMutate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        owner_id: "o1",
-        owner_name: "Juan",
-        total: 450000,
-        settlement_ids: ["s1", "s2"],
-      }),
+    expect(screen.getByText(/rendición/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /ir a rendiciones/i })).toHaveAttribute(
+      "href",
+      "/admin/rendiciones",
     );
   });
 

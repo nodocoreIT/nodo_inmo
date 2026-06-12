@@ -16,9 +16,28 @@ vi.mock("@/features/payments/hooks/use-payments", () => ({
   PAYMENTS_QUERY_KEY: ["nodo_inmo", "payments"],
 }));
 
-const mockUpdateMutate = vi.fn();
 vi.mock("@/features/payments/hooks/use-update-payment", () => ({
-  useUpdatePayment: () => ({ mutate: mockUpdateMutate, isPending: false }),
+  useUpdatePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock("@/features/payments/hooks/use-delete-payment", () => ({
+  useDeletePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useAnnulPayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  assignCommissionAccount: vi.fn(),
+}));
+
+vi.mock("@/app/auth/use-auth", () => ({
+  useAuth: () => ({ orgId: "org-1" }),
+}));
+
+vi.mock("@/features/agency-profile/hooks/use-org-profile", () => ({
+  useOrgProfile: () => ({ data: null }),
+}));
+
+vi.mock("@/shared/hooks/use-cash-accounts", () => ({
+  useCashAccounts: () => ({
+    accounts: [{ id: "cash-ars", label: "Efectivo Pesos (ARS)", currency: "ARS" }],
+  }),
 }));
 
 import { PaymentsList } from "@/features/payments/components/payments-list";
@@ -78,15 +97,12 @@ describe("PaymentsList", () => {
     expect(screen.queryByText("Mitre 200")).not.toBeInTheDocument();
   });
 
-  it("marks an installment as paid", async () => {
+  it("opens the collect dialog when Cobrar is clicked", async () => {
     render(<PaymentsList />, { wrapper });
-    // Narrow to pending so there's a single actionable row
     await userEvent.click(screen.getByRole("button", { name: "Pendientes" }));
-    await userEvent.click(screen.getByRole("button", { name: /marcar cobrada/i }));
-    expect(mockUpdateMutate).toHaveBeenCalledOnce();
-    expect(mockUpdateMutate).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "p-pend", status: "paid", paid_amount: 180000 }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /registrar cobro/i }));
+    expect(screen.getByText("Registrar cobro")).toBeInTheDocument();
+    expect(screen.getByText("Ana — Mitre 200")).toBeInTheDocument();
   });
 
   it("does not show a Cobrar action on paid installments", async () => {
@@ -94,7 +110,7 @@ describe("PaymentsList", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cobradas" }));
     const table = screen.getByRole("table");
     expect(
-      within(table).queryByRole("button", { name: /marcar cobrada/i }),
+      within(table).queryByRole("button", { name: /registrar cobro/i }),
     ).not.toBeInTheDocument();
   });
 

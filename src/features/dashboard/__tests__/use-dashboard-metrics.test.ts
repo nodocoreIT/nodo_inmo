@@ -38,6 +38,8 @@ function makePayment(overrides: Partial<{
   due_date: string;
   amount: number;
   currency: string;
+  paid_date: string | null;
+  paid_amount: number | null;
   contract: { property: { address: string } | null; tenant: { name: string } | null } | null;
 }> = {}) {
   return {
@@ -46,6 +48,8 @@ function makePayment(overrides: Partial<{
     due_date: overrides.due_date ?? "2020-01-01", // past → overdue
     amount: overrides.amount ?? 1000,
     currency: overrides.currency ?? "ARS",
+    paid_date: overrides.paid_date !== undefined ? overrides.paid_date : null,
+    paid_amount: overrides.paid_amount !== undefined ? overrides.paid_amount : null,
     contract: overrides.contract !== undefined ? overrides.contract : {
       property: { address: "Av. Corrientes 1234" },
       tenant: { name: "Juan Pérez" },
@@ -313,5 +317,72 @@ describe("useDashboardMetrics", () => {
     expect(result.current.pendingSettlements.totalByCurrency).toEqual({});
     expect(result.current.recentSealed.count).toBe(0);
     expect(result.current.recentSealed.totalByCurrency).toEqual({});
+    expect(result.current.pastMonthDebts).toHaveLength(0);
+    expect(result.current.currentMonthCollections).toHaveLength(0);
+    expect(result.current.recentReceipts).toHaveLength(0);
+  });
+
+  it("builds past month debts from unpaid installments before the current month", () => {
+    mockUsePayments.mockReturnValue({
+      data: [
+        makePayment({ id: "p-1", due_date: "2026-04-15", status: "pending" }),
+        makePayment({ id: "p-2", due_date: "2026-06-15", status: "pending" }),
+        makePayment({ id: "p-3", due_date: "2026-03-15", status: "paid" }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+
+    const { result } = renderHook(() => useDashboardMetrics(FIXED_TODAY));
+
+    expect(result.current.pastMonthDebts).toHaveLength(1);
+    expect(result.current.pastMonthDebts[0].monthLabel).toBe("04/2026");
+  });
+
+  it("groups current month unpaid installments by tenant and property", () => {
+    mockUsePayments.mockReturnValue({
+      data: [
+        makePayment({
+          id: "p-1",
+          due_date: "2026-06-10",
+          status: "pending",
+          amount: 1000,
+          contract: {
+            property: { address: "Mitre 100" },
+            tenant: { name: "Juan Pérez" },
+          },
+        }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+
+    const { result } = renderHook(() => useDashboardMetrics(FIXED_TODAY));
+
+    expect(result.current.currentMonthCollections).toHaveLength(1);
+    expect(result.current.currentMonthCollections[0].tenantName).toBe("Juan Pérez");
+    expect(result.current.currentMonthCollections[0].status).toBe("sin_cobrar");
+  });
+
+  it("lists recent paid installments as receipts", () => {
+    mockUsePayments.mockReturnValue({
+      data: [
+        makePayment({
+          id: "p-1",
+          due_date: "2026-05-10",
+          status: "paid",
+          paid_date: "2026-06-01",
+          paid_amount: 1000,
+          contract: { property: { address: "A" }, tenant: { name: "Ana" } },
+        }),
+      ],
+      isLoading: false,
+      error: null,
+    });
+
+    const { result } = renderHook(() => useDashboardMetrics(FIXED_TODAY));
+
+    expect(result.current.recentReceipts).toHaveLength(1);
+    expect(result.current.recentReceipts[0].tenantName).toBe("Ana");
   });
 });

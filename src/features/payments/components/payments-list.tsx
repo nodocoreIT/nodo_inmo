@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { PAGE_SIZE } from "@/shared/lib/constants";
-import { useSearchParams } from "react-router-dom";
-import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Check, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
   Table,
@@ -12,7 +12,6 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { usePayments } from "@/features/payments/hooks/use-payments";
-import { useUpdatePayment } from "@/features/payments/hooks/use-update-payment";
 import {
   PAYMENT_STATUS_LABELS,
   effectiveStatus,
@@ -26,6 +25,7 @@ import {
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
 import { cn } from "@/shared/lib/utils";
+import { PaymentCollectDialog } from "./payment-collect-dialog";
 
 type Filter = "all" | "pending" | "overdue" | "paid";
 
@@ -44,10 +44,11 @@ function formatMonthLabel(yyyyMm: string): string {
 
 export function PaymentsList() {
   const { data, isLoading, isError } = usePayments();
-  const updatePayment = useUpdatePayment();
   const query = useSearchStore((s) => s.query);
+  const navigate = useNavigate();
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const collectPaymentId = searchParams.get("collect");
   const statusParam = searchParams.get("status");
   const initialFilter: Filter =
     statusParam === "overdue" || statusParam === "pending" || statusParam === "paid"
@@ -102,9 +103,18 @@ export function PaymentsList() {
   const totalPages = Math.ceil(filteredRows.length / PAGE_SIZE);
   const pagedRows = filteredRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  function markPaid(id: string, amount: number) {
-    const today = new Date().toISOString().slice(0, 10);
-    updatePayment.mutate({ id, status: "paid", paid_date: today, paid_amount: amount });
+  function openCollectDialog(id: string) {
+    setSearchParams((prev) => {
+      prev.set("collect", id);
+      return prev;
+    });
+  }
+
+  function closeCollectDialog() {
+    setSearchParams((prev) => {
+      prev.delete("collect");
+      return prev;
+    });
   }
 
   const hasActiveAdvancedFilter = !!ownerFilter || !!monthFilter;
@@ -236,16 +246,25 @@ export function PaymentsList() {
                     <TableCell>{formatMoney(p.amount, p.currency)}</TableCell>
                     <TableCell><StatusBadge status={eff} /></TableCell>
                     <TableCell className="text-right">
-                      {eff === "paid" ? (
-                        <span className="text-xs text-slate2">{formatDate(p.paid_date)}</span>
-                      ) : eff === "cancelled" ? (
+                      {eff === "cancelled" ? (
                         <span className="text-xs text-slate2">—</span>
+                      ) : eff === "paid" ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label="Modificar cobro"
+                          onClick={() => openCollectDialog(p.id)}
+                          className="gap-1 text-slate2 hover:text-navy"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Editar
+                        </Button>
                       ) : (
                         <Button
                           variant="ghost"
                           size="sm"
-                          aria-label="Marcar cobrada"
-                          onClick={() => markPaid(p.id, p.amount)}
+                          aria-label="Registrar cobro"
+                          onClick={() => openCollectDialog(p.id)}
                           className="gap-1 text-green-700 hover:bg-green-50 hover:text-green-800"
                         >
                           <Check className="h-4 w-4" />
@@ -292,6 +311,19 @@ export function PaymentsList() {
           </div>
         </div>
       )}
+
+      <PaymentCollectDialog
+        paymentId={collectPaymentId}
+        open={!!collectPaymentId}
+        onOpenChange={(open) => {
+          if (!open) closeCollectDialog();
+        }}
+        onSuccess={() => {
+          if (searchParams.get("from") === "dashboard") {
+            navigate("/admin/dashboard");
+          }
+        }}
+      />
     </div>
   );
 }

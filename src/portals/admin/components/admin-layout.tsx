@@ -78,6 +78,8 @@ const ROUTE_TITLES: Record<string, string> = {
   "/admin/contracts": "Contratos",
   "/admin/payments": "Pagos",
   "/admin/caja": "Caja",
+  "/admin/rendiciones": "Rendiciones",
+  "/admin/ganancias": "Ganancias",
   "/admin/documentos": "Documentos",
   "/admin/agenda": "Agenda y Tareas",
 };

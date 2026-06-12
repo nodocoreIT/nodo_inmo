@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { PaginationControls } from "@/shared/components/ui/pagination";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Plus, ArrowUpRight, ArrowDownRight, Download, Share2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -13,7 +13,6 @@ import {
 } from "@/shared/components/ui/table";
 import { useCashMovements } from "@/features/caja/hooks/use-cash-movements";
 import { useOwnerSettlements } from "@/features/caja/hooks/use-owner-settlements";
-import { useSettleOwner } from "@/features/caja/hooks/use-settle-owner";
 import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
 import { useLogoUrl } from "@/features/agency-profile/hooks/use-logo-url";
 import { MovementFormDialog } from "./movement-form-dialog";
@@ -351,7 +350,6 @@ function SealedSettlementActions({ group }: { group: SealedGroup }) {
 
 function SettlementsTab() {
   const { data, isLoading, isError } = useOwnerSettlements();
-  const settleOwner = useSettleOwner();
 
   const allSettlements = data ?? [];
   const pendingGroups = groupPendingByOwner(allSettlements);
@@ -394,48 +392,23 @@ function SettlementsTab() {
         </div>
       )}
 
-      {/* ── Pending settlements — Liquidar action ──────────────────────────── */}
+      {/* ── Pending settlements — redirect to Rendiciones page ─────────────── */}
       {!isLoading && !isError && hasPending && (
-        <div className="rounded-md border border-border bg-card shadow-sm">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Propietario</TableHead>
-                <TableHead>Cuotas</TableHead>
-                <TableHead className="text-right">A liquidar</TableHead>
-                <TableHead className="w-28 text-right">Acción</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pendingGroups.map((g) => (
-                <TableRow key={`${g.owner_id}:${g.currency}`}>
-                  <TableCell className="font-medium">{g.owner_name}</TableCell>
-                  <TableCell>{g.settlement_ids.length}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatMoney(g.total, g.currency)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={settleOwner.isPending}
-                      onClick={() =>
-                        settleOwner.mutate({
-                          owner_id: g.owner_id,
-                          owner_name: g.owner_name,
-                          settlement_ids: g.settlement_ids,
-                          total: g.total,
-                          currency: g.currency,
-                        })
-                      }
-                    >
-                      Liquidar
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-5 py-4">
+          <p className="text-sm font-semibold text-amber-900">
+            Tenés {pendingGroups.length} rendición
+            {pendingGroups.length === 1 ? "" : "es"} pendiente
+            {pendingGroups.length === 1 ? "" : "s"} a propietarios.
+          </p>
+          <p className="mt-1 text-sm text-amber-800">
+            Imprimí el PDF y finalizá cada entrega desde la pantalla de rendiciones.
+          </p>
+          <Link
+            to="/admin/rendiciones"
+            className="mt-3 inline-flex rounded-sm bg-brand px-4 py-2 text-xs font-bold uppercase text-white hover:opacity-90"
+          >
+            Ir a rendiciones
+          </Link>
         </div>
       )}
 

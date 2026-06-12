@@ -18,6 +18,7 @@ import { useUploadLogo } from "@/features/agency-profile/hooks/use-upload-logo";
 import { useLogoUrl } from "@/features/agency-profile/hooks/use-logo-url";
 import { useUpsertOrgProfile } from "@/features/agency-profile/hooks/use-upsert-org-profile";
 import { useStaff } from "@/shared/hooks/use-staff";
+import { useCashAccounts } from "@/shared/hooks/use-cash-accounts";
 
 interface BankAccount {
   id: string;
@@ -124,6 +125,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setTimeout(() => setAiKeySaved(false), 2500);
   };
   const { settings, setSettings, resetSettings } = useThemeSettings();
+  const { accounts: cashAccounts, addAccount, removeAccount } = useCashAccounts();
 
   // Dynamic Bank Accounts state
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
@@ -154,6 +156,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       ...prev,
       { id: Date.now().toString(), ...newBank },
     ]);
+    addAccount({
+      label: `${newBank.bankName} (ARS)`,
+      currency: "ARS",
+    });
     setNewBank({ bankName: "", alias: "", cbu: "" });
     setIsAddingBank(false);
   };
@@ -366,6 +372,36 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       No hay cuentas bancarias registradas.
                     </p>
                   )}
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  <h4 className="text-sm font-bold text-navy">
+                    Cuentas para comisiones (cobros)
+                  </h4>
+                  <p className="text-xs text-slate2">
+                    Estas cuentas aparecen al registrar un cobro para elegir dónde
+                    va la comisión.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {cashAccounts.map((account) => (
+                      <div
+                        key={account.id}
+                        className="flex items-center justify-between rounded-md border border-border bg-card px-4 py-3"
+                      >
+                        <span className="text-sm font-medium text-navy">
+                          {account.label}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeAccount(account.id)}
+                          className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
+                          aria-label={`Eliminar ${account.label}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

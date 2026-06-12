@@ -1,9 +1,19 @@
 import { useMemo } from "react";
 import { usePayments } from "@/features/payments/hooks/use-payments";
+import type { PaymentWithRelations } from "@/features/payments/hooks/use-payments";
 import { useOwnerSettlements } from "@/features/caja/hooks/use-owner-settlements";
 import { useContracts } from "@/features/contracts/hooks/use-contracts";
 import { effectiveStatus } from "@/features/payments/lib/payment-labels";
 import { groupPendingByOwner } from "@/features/caja/lib/caja-math";
+import {
+  collectionStatusForPayments,
+  formatMonthSlash,
+  isCurrentMonthPayment,
+  isPastMonthPayment,
+  monthKey,
+  remainingAmount,
+  type CollectionStatus,
+} from "../lib/dashboard-payment-utils";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -32,11 +42,45 @@ export interface PendingOwnerItem {
   currency: string;
 }
 
+export interface PastDebtItem {
+  id: string;
+  tenantName: string;
+  monthLabel: string;
+  amount: number;
+  currency: string;
+}
+
+export interface MonthCollectionPayment {
+  id: string;
+  remaining: number;
+}
+
+export interface MonthCollectionItem {
+  key: string;
+  tenantName: string;
+  propertyAddress: string;
+  status: CollectionStatus;
+  balance: number;
+  currency: string;
+  payments: MonthCollectionPayment[];
+}
+
+export interface RecentReceiptItem {
+  id: string;
+  tenantName: string;
+  amount: number;
+  currency: string;
+  paidDate: string;
+}
+
 export interface DashboardMetrics {
   overduePayments: MetricGroup & { items: OverdueItem[] };
   pendingSettlements: MetricGroup & { items: PendingOwnerItem[] };
   recentSealed: MetricGroup;
   activeContracts: number;
+  pastMonthDebts: PastDebtItem[];
+  currentMonthCollections: MonthCollectionItem[];
+  recentReceipts: RecentReceiptItem[];
   loading: boolean;
   error: unknown;
 }
@@ -62,6 +106,78 @@ function startOfDayMinusDays(today: Date, days: number): Date {
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - days);
   return d;
+}
+
+function buildPastMonthDebts(
+  paymentRows: PaymentWithRelations[],
+  today: Date,
+): PastDebtItem[] {
+  return paymentRows
+    .filter((p) => isPastMonthPayment(p, today))
+    .map((p) => ({
+      id: p.id,
+      tenantName: p.contract?.tenant?.name ?? "—",
+      monthLabel: formatMonthSlash(monthKey(p.due_date)),
+      amount: remainingAmount(p),
+      currency: p.currency,
+    }))
+    .sort((a, b) => b.monthLabel.localeCompare(a.monthLabel));
+}
+
+function buildCurrentMonthCollections(
+  paymentRows: PaymentWithRelations[],
+  today: Date,
+): MonthCollectionItem[] {
+  const current = paymentRows.filter((p) => isCurrentMonthPayment(p, today));
+  const groups = new Map<string, PaymentWithRelations[]>();
+
+  for (const payment of current) {
+    const tenantName = payment.contract?.tenant?.name ?? "—";
+    const propertyAddress = payment.contract?.property?.address ?? "—";
+    const groupKey = `${tenantName}::${propertyAddress}::${payment.currency}`;
+    const bucket = groups.get(groupKey) ?? [];
+    bucket.push(payment);
+    groups.set(groupKey, bucket);
+  }
+
+  return Array.from(groups.entries())
+    .map(([key, payments]) => {
+      const first = payments[0];
+      const tenantName = first.contract?.tenant?.name ?? "—";
+      const propertyAddress = first.contract?.property?.address ?? "—";
+      const balance = payments.reduce((sum, p) => sum + remainingAmount(p), 0);
+
+      return {
+        key,
+        tenantName,
+        propertyAddress,
+        status: collectionStatusForPayments(payments),
+        balance,
+        currency: first.currency,
+        payments: payments.map((p) => ({
+          id: p.id,
+          remaining: remainingAmount(p),
+        })),
+      };
+    })
+    .filter((item) => item.balance > 0)
+    .sort((a, b) => b.balance - a.balance);
+}
+
+function buildRecentReceipts(
+  paymentRows: PaymentWithRelations[],
+): RecentReceiptItem[] {
+  return paymentRows
+    .filter((p) => p.status === "paid" && p.paid_date)
+    .sort((a, b) => (b.paid_date ?? "").localeCompare(a.paid_date ?? ""))
+    .slice(0, 8)
+    .map((p) => ({
+      id: p.id,
+      tenantName: p.contract?.tenant?.name ?? "—",
+      amount: p.paid_amount ?? p.amount,
+      currency: p.currency,
+      paidDate: p.paid_date!,
+    }));
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -137,11 +253,21 @@ export function useDashboardMetrics(today: Date = new Date()): DashboardMetrics 
       })),
     };
 
+    const pastMonthDebts = buildPastMonthDebts(paymentRows, today);
+    const currentMonthCollections = buildCurrentMonthCollections(
+      paymentRows,
+      today,
+    );
+    const recentReceipts = buildRecentReceipts(paymentRows);
+
     return {
       overduePayments,
       pendingSettlements,
       recentSealed,
       activeContracts,
+      pastMonthDebts,
+      currentMonthCollections,
+      recentReceipts,
       loading,
       error,
     };
