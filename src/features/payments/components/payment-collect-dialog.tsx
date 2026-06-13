@@ -85,11 +85,18 @@ function periodToMonthInput(period: string): string {
 }
 
 function formatSubmitError(err: unknown): string {
-  if (err instanceof Error && err.message) return err.message;
-  if (err && typeof err === "object" && "message" in err) {
-    const message = (err as { message: unknown }).message;
-    if (typeof message === "string" && message.length > 0) return message;
+  const raw =
+    err instanceof Error && err.message
+      ? err.message
+      : err && typeof err === "object" && "message" in err
+        ? String((err as { message: unknown }).message)
+        : "";
+
+  if (raw.includes("payments_contract_period_unique")) {
+    return "Ya existe una cuota para ese mes en este contrato. Dejá el período de la cuota original.";
   }
+
+  if (raw.length > 0) return raw;
   return "No se pudo guardar el cobro. Intentá de nuevo.";
 }
 
@@ -205,7 +212,23 @@ export function PaymentCollectDialog({
       ? parseCurrencyInput(values.expensesAmount) ?? 0
       : 0;
 
-    const period = `${values.periodMonth}-01`;
+    const periodMonth = periodToMonthInput(payment.period);
+    const periodChanged = isPaid && values.periodMonth !== periodMonth;
+    const newPeriod = `${values.periodMonth}-01`;
+
+    if (periodChanged) {
+      const conflict = payments.find(
+        (p) =>
+          p.id !== payment.id &&
+          p.contract_id === payment.contract_id &&
+          periodToMonthInput(p.period) === values.periodMonth,
+      );
+      if (conflict) {
+        setSubmitError("Ya existe una cuota para ese mes en este contrato.");
+        return;
+      }
+    }
+
     const alreadyPaid = isPaid ? 0 : (payment.paid_amount ?? 0);
     const newPaidTotal = alreadyPaid + received;
     const cobroAmount = isPaid ? received : Math.max(payment.amount, newPaidTotal);
@@ -214,7 +237,7 @@ export function PaymentCollectDialog({
     try {
       await updatePayment.mutateAsync({
         id: payment.id,
-        period,
+        ...(periodChanged ? { period: newPeriod } : {}),
         amount: cobroAmount,
         status: isFullyPaid ? "paid" : "pending",
         paid_date: isFullyPaid ? values.paidDate : payment.paid_date,
@@ -310,14 +333,25 @@ export function PaymentCollectDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-xs font-bold uppercase tracking-wide text-slate2">
-                          Mes pagado
+                          Mes de la cuota
                         </FormLabel>
                         <FormControl>
-                          <Input type="month" {...field} />
+                          {isPaid ? (
+                            <Input type="month" {...field} />
+                          ) : (
+                            <p className="rounded-md border border-border bg-mist/40 px-3 py-2 text-sm text-navy">
+                              {formatPeriod(payment.period)}
+                            </p>
+                          )}
                         </FormControl>
                         <p className="text-2xs text-slate2">
-                          Período: {formatPeriod(`${field.value}-01`)}
+                          Período: {formatPeriod(`${isPaid ? field.value : periodToMonthInput(payment.period)}-01`)}
                         </p>
+                        {!isPaid ? (
+                          <p className="text-2xs text-slate2">
+                            Corresponde a esta cuota; no se puede cambiar al cobrar.
+                          </p>
+                        ) : null}
                         <FormMessage />
                       </FormItem>
                     )}
