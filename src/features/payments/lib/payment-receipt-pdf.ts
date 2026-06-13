@@ -1,15 +1,36 @@
 import React from "react";
+import { supabase } from "@/shared/lib/supabase";
 import type { PaymentReceiptData } from "../components/payment-receipt-document";
 import type { PaymentWithRelations } from "../hooks/use-payments";
+import { buildCobroBreakdown } from "./cobro-breakdown";
 
 function slugify(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "_").slice(0, 30);
 }
 
-export function buildReceiptData(
+export async function buildReceiptData(
   payment: PaymentWithRelations,
   agency: { legal_name?: string | null; address?: string | null } | null,
-): PaymentReceiptData {
+): Promise<PaymentReceiptData> {
+  let commissionFromCaja: number | null = null;
+  let accountLabel: string | null = null;
+
+  if (payment.status === "paid") {
+    const { data } = await supabase
+      .schema("nodo_inmo")
+      .from("cash_movements")
+      .select("amount, category")
+      .eq("payment_id", payment.id)
+      .eq("source", "commission")
+      .limit(1)
+      .maybeSingle();
+
+    commissionFromCaja = data?.amount ?? null;
+    accountLabel = data?.category ?? null;
+  }
+
+  const breakdown = buildCobroBreakdown(payment, commissionFromCaja);
+
   return {
     agencyName: agency?.legal_name ?? "NODO INMO",
     address: agency?.address ?? "",
@@ -18,9 +39,14 @@ export function buildReceiptData(
     tenantName: payment.contract?.tenant?.name ?? "—",
     propertyAddress: payment.contract?.property?.address ?? "—",
     period: payment.period,
-    paymentMethod: payment.payment_method ?? "Efectivo",
-    rentAmount: payment.paid_amount ?? payment.amount,
+    paymentMethod: accountLabel ?? payment.payment_method ?? "Transferencia",
     currency: payment.currency,
+    rentAmount: breakdown.rentAmount,
+    expensesAmount: breakdown.expensesAmount,
+    grossAmount: breakdown.grossAmount,
+    commissionRate: breakdown.commissionRate,
+    commissionAmount: breakdown.commissionAmount,
+    ownerShare: breakdown.ownerShare,
   };
 }
 
@@ -28,7 +54,7 @@ export async function downloadPaymentReceipt(
   payment: PaymentWithRelations,
   agency: { legal_name?: string | null; address?: string | null } | null,
 ): Promise<void> {
-  const data = buildReceiptData(payment, agency);
+  const data = await buildReceiptData(payment, agency);
   const [{ pdf }, { PaymentReceiptDocument }] = await Promise.all([
     import("@react-pdf/renderer"),
     import("@/features/payments/components/payment-receipt-document"),

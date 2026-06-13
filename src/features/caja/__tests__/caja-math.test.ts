@@ -277,4 +277,19 @@ describe("computeSettlementBreakdown", () => {
     );
     expect(result.commission).toBe(100);
   });
+
+  it("gross includes rent and expenses_amount from cobros", () => {
+    const result = computeSettlementBreakdown(
+      [{ id: "p1", amount: 440000, expenses_amount: 50000, currency: "ARS" }],
+      [{ payment_id: "p1", amount: 49000 }],
+      [],
+      10,
+      "ARS",
+    );
+    expect(result.rent_gross).toBe(440000);
+    expect(result.expenses_gross).toBe(50000);
+    expect(result.gross).toBe(490000);
+    expect(result.commission).toBe(49000);
+    expect(result.owner_share).toBe(441000);
+  });
 });

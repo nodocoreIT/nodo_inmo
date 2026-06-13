@@ -4,10 +4,17 @@ import type { Database } from "@/shared/types/database";
 
 export type PaymentRow = Database["nodo_inmo"]["Tables"]["payments"]["Row"];
 
-/** Payment row enriched with the related contract's property address, tenant name, and owner name. */
+/** Payment row enriched with contract, property, tenant and owner for display/docs. */
 export type PaymentWithRelations = PaymentRow & {
+  expenses_amount?: number;
   contract: {
-    property: { address: string; owner: { name: string } | null } | null;
+    rent_amount: number;
+    commission_amount: number | null;
+    property: {
+      address: string;
+      commission_rate: number | null;
+      owner: { name: string; commission_rate?: number | null } | null;
+    } | null;
     tenant: { name: string } | null;
   } | null;
 };
@@ -26,7 +33,7 @@ export function usePayments() {
         .schema("nodo_inmo")
         .from("payments")
         .select(
-          "*, contract:contracts!payments_contract_id_fkey(property:properties!contracts_property_id_fkey(address, owner:contacts!properties_owner_contact_id_fkey(name)), tenant:contacts!contracts_tenant_id_fkey(name))",
+          "*, contract:contracts!payments_contract_id_fkey(rent_amount, commission_amount, property:properties!contracts_property_id_fkey(address, commission_rate, owner:contacts!properties_owner_contact_id_fkey(name, commission_rate)), tenant:contacts!contracts_tenant_id_fkey(name))",
         )
         .order("due_date", { ascending: true });
 

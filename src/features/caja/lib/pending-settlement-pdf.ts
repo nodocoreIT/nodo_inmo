@@ -34,7 +34,7 @@ export async function buildPendingStatementData(
   const { data: payments, error: paymentsError } = await supabase
     .schema("nodo_inmo")
     .from("payments")
-    .select("id, amount, currency, contract_id")
+    .select("id, amount, expenses_amount, currency, contract_id")
     .in("id", paymentIds);
 
   if (paymentsError) throw paymentsError;
@@ -78,6 +78,7 @@ export async function buildPendingStatementData(
     (payments ?? []).map((p) => ({
       id: p.id,
       amount: p.amount,
+      expenses_amount: p.expenses_amount ?? 0,
       currency: p.currency,
     })),
     (movements ?? [])

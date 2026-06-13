@@ -95,6 +95,8 @@ export interface BreakdownDeduction {
 
 export interface SettlementBreakdown {
   gross: number;
+  rent_gross?: number;
+  expenses_gross?: number;
   commission_rate: number;
   commission: number;
   /** gross - commission; the owner's share before expense deductions */
@@ -116,22 +118,22 @@ export interface SettlementBreakdown {
  * @param currency        Settlement currency — filters payments, commissions, deductions.
  */
 export function computeSettlementBreakdown(
-  payments: { id: string; amount: number; currency: string }[],
+  payments: { id: string; amount: number; expenses_amount?: number; currency: string }[],
   commissionMovements: { payment_id: string; amount: number }[],
   expenses: { id: string; amount: number; currency: string; expense_date: string; description: string; type: string }[],
   commissionRate: number,
   currency: string,
 ): SettlementBreakdown {
-  // Build a Set of payment ids in this batch for O(1) membership checks
   const paymentIds = new Set(payments.map((p) => p.id));
 
-  // gross = sum of payment amounts for this currency
-  const gross = payments
-    .filter((p) => p.currency === currency)
-    .reduce((sum, p) => sum + p.amount, 0);
+  const inCurrency = payments.filter((p) => p.currency === currency);
+  const rentGross = inCurrency.reduce((sum, p) => sum + p.amount, 0);
+  const expensesGross = inCurrency.reduce(
+    (sum, p) => sum + (p.expenses_amount ?? 0),
+    0,
+  );
+  const gross = rentGross + expensesGross;
 
-  // commission = sum of commission movements whose payment is in this batch
-  // (as-of-cobro frozen value — NOT rate * gross)
   const commission = commissionMovements
     .filter((cm) => paymentIds.has(cm.payment_id))
     .reduce((sum, cm) => sum + cm.amount, 0);
@@ -153,6 +155,8 @@ export function computeSettlementBreakdown(
 
   return {
     gross,
+    rent_gross: rentGross,
+    expenses_gross: expensesGross,
     commission_rate: commissionRate,
     commission,
     owner_share: ownerShare,

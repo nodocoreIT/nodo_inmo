@@ -11,8 +11,13 @@ export interface PaymentReceiptData {
   propertyAddress: string;
   period: string;
   paymentMethod: string;
-  rentAmount: number;
   currency: string;
+  rentAmount: number;
+  expensesAmount: number;
+  grossAmount: number;
+  commissionRate: number;
+  commissionAmount: number;
+  ownerShare: number;
 }
 
 const styles = StyleSheet.create({
@@ -28,11 +33,45 @@ const styles = StyleSheet.create({
   },
   line: { marginBottom: 6 },
   label: { fontFamily: "Helvetica-Bold" },
+  detailBox: {
+    marginTop: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderStyle: "solid",
+    borderRadius: 4,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  detailLabel: { fontSize: 10, color: "#334155" },
+  detailAmount: { fontSize: 10, fontFamily: "Helvetica-Bold" },
+  divider: {
+    borderTopWidth: 1,
+    borderTopColor: "#cbd5e1",
+    borderTopStyle: "solid",
+    marginVertical: 8,
+  },
   total: {
     marginTop: 16,
     fontSize: 12,
     fontFamily: "Helvetica-Bold",
     textAlign: "center",
+  },
+  adminSection: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "#f8fafc",
+    borderRadius: 4,
+  },
+  adminTitle: {
+    fontSize: 9,
+    fontFamily: "Helvetica-Bold",
+    color: "#475569",
+    marginBottom: 6,
+    textTransform: "uppercase",
   },
   footer: {
     position: "absolute",
@@ -46,6 +85,8 @@ const styles = StyleSheet.create({
 });
 
 export function PaymentReceiptDocument(data: PaymentReceiptData) {
+  const hasExpenses = data.expensesAmount > 0;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -64,26 +105,61 @@ export function PaymentReceiptDocument(data: PaymentReceiptData) {
         </Text>
         <Text style={styles.line}>
           <Text style={styles.label}>CONCEPTO: </Text>
-          Alquiler correspondiente al mes de {formatPeriod(data.period)}
+          Alquiler y cargos del mes de {formatPeriod(data.period)}
         </Text>
         <Text style={styles.line}>
           <Text style={styles.label}>PROPIEDAD: </Text>
           {data.propertyAddress}
         </Text>
         <Text style={styles.line}>
-          <Text style={styles.label}>FORMA DE PAGO: </Text>
-          {data.paymentMethod || "Efectivo"}
+          <Text style={styles.label}>CUENTA / FORMA DE PAGO: </Text>
+          {data.paymentMethod || "Transferencia"}
         </Text>
 
-        <View style={{ marginTop: 12 }}>
-          <Text style={styles.line}>
-            DETALLE: Alquiler: {formatMoney(data.rentAmount, data.currency)}
-          </Text>
+        <View style={styles.detailBox}>
+          <Text style={{ fontFamily: "Helvetica-Bold", marginBottom: 8 }}>DETALLE DEL COBRO</Text>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Alquiler ({formatPeriod(data.period)})</Text>
+            <Text style={styles.detailAmount}>
+              {formatMoney(data.rentAmount, data.currency)}
+            </Text>
+          </View>
+          {hasExpenses ? (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Expensas / Otros</Text>
+              <Text style={styles.detailAmount}>
+                {formatMoney(data.expensesAmount, data.currency)}
+              </Text>
+            </View>
+          ) : null}
+          <View style={styles.divider} />
+          <View style={styles.detailRow}>
+            <Text style={{ ...styles.detailLabel, fontFamily: "Helvetica-Bold" }}>
+              TOTAL RECIBIDO
+            </Text>
+            <Text style={styles.detailAmount}>
+              {formatMoney(data.grossAmount, data.currency)}
+            </Text>
+          </View>
         </View>
 
-        <Text style={styles.total}>
-          TOTAL RECIBIDO: {formatMoney(data.rentAmount, data.currency)}
-        </Text>
+        <View style={styles.adminSection}>
+          <Text style={styles.adminTitle}>Desglose administrativo</Text>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>
+              Comisión inmobiliaria ({data.commissionRate}%)
+            </Text>
+            <Text style={styles.detailAmount}>
+              {formatMoney(data.commissionAmount, data.currency)}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Neto propietario</Text>
+            <Text style={styles.detailAmount}>
+              {formatMoney(data.ownerShare, data.currency)}
+            </Text>
+          </View>
+        </View>
 
         <Text style={{ marginTop: 40, textAlign: "center" }}>
           Firma y Sello Aclaratorio

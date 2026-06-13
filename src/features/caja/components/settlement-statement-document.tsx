@@ -243,9 +243,27 @@ export function SettlementStatementDocument(props: StatementData) {
 
         {/* ── Breakdown table ─────────────────────────────────────────────── */}
         <View style={styles.table}>
+          {(breakdown.rent_gross ?? breakdown.gross) > 0 ? (
+            <View style={styles.tableRow}>
+              <Text style={styles.cellLabel}>Alquileres cobrados</Text>
+              <Text style={styles.cellAmount}>
+                {fmtAmount(breakdown.rent_gross ?? breakdown.gross, currency)}
+              </Text>
+            </View>
+          ) : null}
+
+          {(breakdown.expenses_gross ?? 0) > 0 ? (
+            <View style={styles.tableRow}>
+              <Text style={styles.cellLabel}>Expensas / Otros cobrados</Text>
+              <Text style={styles.cellAmount}>
+                {fmtAmount(breakdown.expenses_gross ?? 0, currency)}
+              </Text>
+            </View>
+          ) : null}
+
           {/* Row 1: Gross */}
           <View style={styles.tableRow}>
-            <Text style={styles.cellLabel}>Bruto cobrado</Text>
+            <Text style={styles.cellLabelBold}>Bruto cobrado (total)</Text>
             <Text style={styles.cellAmount}>
               {fmtAmount(breakdown.gross, currency)}
             </Text>

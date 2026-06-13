@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Trash2, FileDown } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -55,7 +54,6 @@ import { formatCurrencyInput, parseCurrencyInput } from "@/shared/lib/format-mon
 import { useCashAccounts } from "@/shared/hooks/use-cash-accounts";
 import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
 import { downloadPaymentReceipt } from "../lib/payment-receipt-pdf";
-import { CASH_MOVEMENTS_QUERY_KEY } from "@/features/caja/hooks/use-cash-movements";
 
 const schema = z.object({
   periodMonth: z.string().min(1, "Mes requerido"),
@@ -127,7 +125,6 @@ export function PaymentCollectDialog({
   onSuccess,
 }: PaymentCollectDialogProps) {
   const { orgId } = useAuth();
-  const queryClient = useQueryClient();
   const { data: payments = [] } = usePayments();
   const updatePayment = useUpdatePayment();
   const deletePayment = useDeletePayment();
@@ -182,7 +179,10 @@ export function PaymentCollectDialog({
         periodMonth: periodToMonthInput(payment.period),
         paidDate: payment.paid_date ?? today,
         amountReceived: formatCurrencyInput(String(Math.round(defaultAmount)), currency),
-        expensesAmount: "",
+        expensesAmount:
+          (payment.expenses_amount ?? 0) > 0
+            ? formatCurrencyInput(String(Math.round(payment.expenses_amount ?? 0)), currency)
+            : "",
         commissionAccountId: defaultAccount?.id ?? "",
       });
     })();
@@ -239,6 +239,7 @@ export function PaymentCollectDialog({
         id: payment.id,
         ...(periodChanged ? { period: newPeriod } : {}),
         amount: cobroAmount,
+        expenses_amount: expenses,
         status: isFullyPaid ? "paid" : "pending",
         paid_date: isFullyPaid ? values.paidDate : payment.paid_date,
         paid_amount: isFullyPaid ? cobroAmount : newPaidTotal,
@@ -247,23 +248,6 @@ export function PaymentCollectDialog({
 
       if (isFullyPaid) {
         await assignCommissionAccount(payment.id, account.label, account.id);
-      }
-
-      if (expenses > 0) {
-        const tenant = payment.contract?.tenant?.name ?? "Inquilino";
-        const { error } = await supabase.schema("nodo_inmo").from("cash_movements").insert({
-          org_id: orgId,
-          type: "income",
-          amount: expenses,
-          currency: account.currency,
-          date: values.paidDate,
-          concept: `Expensas/Otros — ${tenant}`,
-          category: account.label,
-          cash_account_id: account.id,
-          source: "manual",
-        });
-        if (error) throw error;
-        queryClient.invalidateQueries({ queryKey: CASH_MOVEMENTS_QUERY_KEY });
       }
 
       onSuccess?.();
