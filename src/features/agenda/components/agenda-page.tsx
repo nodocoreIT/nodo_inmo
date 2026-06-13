@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Calendar,
   Plus,
@@ -47,6 +48,7 @@ const CATEGORIES = [
 ];
 
 export function AgendaPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: tasks = [], isLoading } = useTasks();
   const { data: properties = [] } = useProperties();
   const { data: contacts = [] } = useContacts();
@@ -106,6 +108,28 @@ export function AgendaPage() {
     setFormContactId(task.contact_id || "");
     setDialogOpen(true);
   };
+
+  useEffect(() => {
+    const taskId = searchParams.get("task");
+    if (!taskId || isLoading) return;
+
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    setSelectedDateStr(task.due_date);
+    setFilterStatus("all");
+    setEditingTask(task);
+    setFormTitle(task.title);
+    setFormDescription(task.description || "");
+    setFormCategory(task.category);
+    setFormPriority(task.priority);
+    setFormDueDate(task.due_date);
+    setFormAssignedTo(task.assigned_to || "");
+    setFormPropertyId(task.property_id || "");
+    setFormContactId(task.contact_id || "");
+    setDialogOpen(true);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, tasks, isLoading, setSearchParams]);
 
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
