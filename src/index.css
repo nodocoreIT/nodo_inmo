@@ -1,4 +1,66 @@
-@import "@nodocore/shared-components/styles/base.css";
+/* Google Fonts — Sora (display) + Hanken Grotesk (body) */
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Hanken+Grotesk:wght@300;400;500;600;700&display=swap");
+
+@theme {
+  /* ─── Nodo Brand Colors ─────────────────────────────────── */
+  --color-navy: #121e2f;
+  --color-navy-700: #233650;
+  --color-navy-900: #121e2f;
+  --color-brand: #da5a0e;
+  --color-brand-600: #c04e0b;
+  --color-brand-300: #f0a877;
+  --color-paper: #f5f8fc;
+  --color-slate2: #647890;
+  --color-slate2-300: #9dacbe;
+  --color-mist: #dee7f1;
+  --color-mist-200: #ebf1f7;
+  --color-ink: #16202e;
+  --color-footer: #0d1722;
+
+  /* ─── shadcn/ui semantic tokens — wired to Nodo palette ─── */
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --color-card: #ffffff;
+  --color-card-foreground: var(--color-ink);
+  --color-popover: #ffffff;
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--color-mist);
+  --color-secondary-foreground: var(--color-navy);
+  --color-muted: var(--color-mist-200);
+  --color-muted-foreground: var(--color-slate2);
+  --color-accent: var(--color-mist);
+  --color-accent-foreground: var(--color-navy);
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-border: var(--color-mist);
+  --color-input: var(--color-mist);
+  --color-ring: var(--color-brand);
+
+  /* ─── Typography ─────────────────────────────────────────── */
+  --font-display: "Sora", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk", system-ui, sans-serif;
+
+  /* ─── Radius ──────────────────────────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --radius-pill: 999px;
+
+  /* shadcn uses --radius as its base radius token */
+  --radius: 8px;
+
+  /* ─── Shadows ─────────────────────────────────────────────── */
+  --shadow-sm:
+    0 1px 2px rgba(18, 30, 47, 0.06), 0 2px 6px rgba(18, 30, 47, 0.05);
+  --shadow-md:
+    0 8px 24px rgba(18, 30, 47, 0.08), 0 2px 6px rgba(18, 30, 47, 0.04);
+  --shadow-lg:
+    0 24px 60px rgba(18, 30, 47, 0.16), 0 8px 20px rgba(18, 30, 47, 0.08);
+}
+
 @import "tailwindcss";
 
 
