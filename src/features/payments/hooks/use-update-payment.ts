@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/shared/lib/supabase";
 import type { Database } from "@/shared/types/database";
 import { PAYMENTS_QUERY_KEY } from "./use-payments";
+import { CASH_MOVEMENTS_QUERY_KEY } from "@/features/caja/hooks/use-cash-movements";
+import { OWNER_SETTLEMENTS_QUERY_KEY } from "@/features/caja/hooks/use-owner-settlements";
 
 type PaymentUpdate = Database["nodo_inmo"]["Tables"]["payments"]["Update"];
 
@@ -22,6 +24,8 @@ export function useUpdatePayment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PAYMENTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: CASH_MOVEMENTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: OWNER_SETTLEMENTS_QUERY_KEY });
     },
   });
 }

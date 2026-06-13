@@ -1,4 +1,5 @@
 import type { CashMovementRow } from "@/features/caja/hooks/use-cash-movements";
+import type { CashAccount } from "@/shared/hooks/use-cash-accounts";
 
 export interface MonthlyMovementRow {
   id: string;
@@ -66,6 +67,7 @@ function addToCategory(
 export function buildMonthlyBalance(
   movements: CashMovementRow[],
   periodYm: string,
+  accounts: CashAccount[] = [],
 ): MonthlyBalanceSummary {
   const inMonth = movements.filter((m) => monthKey(m.date) === periodYm);
 
@@ -89,6 +91,17 @@ export function buildMonthlyBalance(
     .reduce((sum, m) => sum + signedAmount(m), 0);
 
   const accountMap = new Map<string, AccountBalance>();
+
+  for (const acc of accounts) {
+    const key = `${acc.label}:${acc.currency}`;
+    accountMap.set(key, {
+      label: acc.label,
+      currency: acc.currency,
+      balance: acc.initial_balance ?? 0,
+      kind: acc.kind === "EFECTIVO" ? "EFECTIVO" : "BANCO",
+    });
+  }
+
   for (const m of movements) {
     const label = m.category ?? "Sin cuenta";
     const currency = m.currency as "ARS" | "USD";

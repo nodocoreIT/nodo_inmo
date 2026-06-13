@@ -75,13 +75,25 @@ export function useAnnulPayment() {
 export async function assignCommissionAccount(
   paymentId: string,
   accountLabel: string,
+  accountId?: string,
 ) {
-  const { error } = await supabase
-    .schema("nodo_inmo")
-    .from("cash_movements")
-    .update({ category: accountLabel })
-    .eq("payment_id", paymentId)
-    .eq("source", "commission");
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase
+      .schema("nodo_inmo")
+      .from("cash_movements")
+      .update({
+        category: accountLabel,
+        ...(accountId ? { cash_account_id: accountId } : {}),
+      })
+      .eq("payment_id", paymentId)
+      .eq("source", "commission")
+      .select("id");
 
-  if (error) throw error;
+    if (error) throw error;
+    if (data && data.length > 0) return;
+
+    await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+  }
+
+  throw new Error("No se pudo asignar la cuenta al movimiento de comisión.");
 }

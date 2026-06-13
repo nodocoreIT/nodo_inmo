@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import { useCashMovements } from "@/features/caja/hooks/use-cash-movements";
+import { useCashAccounts } from "@/shared/hooks/use-cash-accounts";
 import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
 import { formatMoney } from "@/features/contracts/lib/contract-labels";
 import {
@@ -51,6 +52,7 @@ function amountClass(value: number | null): string {
 
 export function GananciasPage() {
   const { data: movements = [], isLoading, isError } = useCashMovements();
+  const { accounts, isLoading: accountsLoading } = useCashAccounts();
   const { data: agency } = useOrgProfile();
   const [periodYm, setPeriodYm] = useState(currentPeriodYm);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -64,8 +66,8 @@ export function GananciasPage() {
   }, [movements]);
 
   const summary = useMemo(
-    () => buildMonthlyBalance(movements, periodYm),
-    [movements, periodYm],
+    () => buildMonthlyBalance(movements, periodYm, accounts),
+    [movements, periodYm, accounts],
   );
 
   const reportData = useMemo(
@@ -161,7 +163,7 @@ export function GananciasPage() {
         </div>
       </div>
 
-      {isLoading && (
+      {(isLoading || accountsLoading) && (
         <div role="status" className="flex justify-center py-16">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
         </div>
@@ -173,7 +175,7 @@ export function GananciasPage() {
         </p>
       )}
 
-      {!isLoading && !isError && (
+      {!isLoading && !accountsLoading && !isError && (
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_300px]">
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -282,7 +284,12 @@ export function GananciasPage() {
             <div className="rounded-md border border-border bg-card p-4 shadow-sm">
               <h3 className="text-sm font-bold text-navy">Saldos en Cuenta</h3>
               <div className="mt-3 space-y-2">
-                {summary.accountBalances.map((a) => (
+                {summary.accountBalances.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-slate2">
+                    Agregá cuentas en Configuración → Cuentas bancarias.
+                  </p>
+                ) : (
+                  summary.accountBalances.map((a) => (
                   <div
                     key={`${a.label}-${a.currency}`}
                     className={cn(
@@ -302,7 +309,8 @@ export function GananciasPage() {
                       {formatMoney(a.balance, a.currency)}
                     </p>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 

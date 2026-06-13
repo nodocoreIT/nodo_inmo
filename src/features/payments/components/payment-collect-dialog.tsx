@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, Trash2, FileDown } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import {
@@ -38,6 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import { useAuth } from "@/app/auth/use-auth";
+import { supabase } from "@/shared/lib/supabase";
 import { usePayments, type PaymentWithRelations } from "../hooks/use-payments";
 import { useUpdatePayment } from "../hooks/use-update-payment";
 import {
@@ -52,12 +55,13 @@ import { formatCurrencyInput, parseCurrencyInput } from "@/shared/lib/format-mon
 import { useCashAccounts } from "@/shared/hooks/use-cash-accounts";
 import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
 import { downloadPaymentReceipt } from "../lib/payment-receipt-pdf";
-import { FileDown } from "lucide-react";
+import { CASH_MOVEMENTS_QUERY_KEY } from "@/features/caja/hooks/use-cash-movements";
 
 const schema = z.object({
   periodMonth: z.string().min(1, "Mes requerido"),
   paidDate: z.string().min(1, "Fecha requerida"),
   amountReceived: z.string().min(1, "Monto requerido"),
+  expensesAmount: z.string().optional(),
   commissionAccountId: z.string().min(1, "Elegí una cuenta"),
 });
 
@@ -94,22 +98,21 @@ export function PaymentCollectDialog({
   onOpenChange,
   onSuccess,
 }: PaymentCollectDialogProps) {
+  const { orgId } = useAuth();
+  const queryClient = useQueryClient();
   const { data: payments = [] } = usePayments();
   const updatePayment = useUpdatePayment();
   const deletePayment = useDeletePayment();
   const annulPayment = useAnnulPayment();
-  const { accounts } = useCashAccounts();
+  const { accounts, isLoading: accountsLoading } = useCashAccounts();
   const { data: agency } = useOrgProfile();
   const payment = payments.find((p) => p.id === paymentId) ?? null;
   const today = new Date().toISOString().slice(0, 10);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const currency = (payment?.currency ?? "ARS") as "ARS" | "USD";
-  const currencyAccounts = useMemo(
-    () => accounts.filter((a) => a.currency === currency),
-    [accounts, currency],
-  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -117,64 +120,100 @@ export function PaymentCollectDialog({
       periodMonth: "",
       paidDate: today,
       amountReceived: "",
+      expensesAmount: "",
       commissionAccountId: "",
     },
   });
 
   const isPaid = payment?.status === "paid";
 
-  const wasOpen = useRef(false);
-
   useEffect(() => {
-    if (!open) {
-      wasOpen.current = false;
-      return;
-    }
-    if (!payment || wasOpen.current) return;
-    wasOpen.current = true;
+    if (!open || !payment) return;
 
-    const balance = isPaid
+    const defaultAmount = isPaid
       ? (payment.paid_amount ?? payment.amount)
-      : remainingAmount(payment);
+      : payment.amount;
+
+    const matchingAccounts = accounts.filter((a) => a.currency === currency);
+    const pool = matchingAccounts.length > 0 ? matchingAccounts : accounts;
     const defaultAccount =
-      currencyAccounts.find((a) => a.id === findAccountIdByLabel(currencyAccounts, payment.payment_method)) ??
-      currencyAccounts[0];
+      pool.find((a) => a.id === findAccountIdByLabel(pool, payment.payment_method)) ??
+      pool[0];
 
     form.reset({
       periodMonth: periodToMonthInput(payment.period),
       paidDate: payment.paid_date ?? today,
-      amountReceived: formatCurrencyInput(String(balance)),
+      amountReceived: formatCurrencyInput(String(Math.round(defaultAmount)), currency),
+      expensesAmount: "",
       commissionAccountId: defaultAccount?.id ?? "",
     });
-  }, [open, payment, isPaid, currencyAccounts, form, today]);
+  }, [open, payment, isPaid, accounts, currency, form, today]);
 
   async function handleSubmit(values: FormValues) {
-    if (!payment) return;
+    if (!payment || !orgId) return;
+    setSubmitError(null);
 
-    const account = currencyAccounts.find((a) => a.id === values.commissionAccountId);
-    if (!account) return;
+    const account = accounts.find((a) => a.id === values.commissionAccountId);
+    if (!account) {
+      setSubmitError("Elegí una cuenta válida.");
+      return;
+    }
 
     const received = parseCurrencyInput(values.amountReceived) ?? 0;
+    if (received <= 0) {
+      setSubmitError("El monto recibido debe ser mayor a cero.");
+      return;
+    }
+
+    const expenses = values.expensesAmount
+      ? parseCurrencyInput(values.expensesAmount) ?? 0
+      : 0;
+
     const period = `${values.periodMonth}-01`;
     const alreadyPaid = isPaid ? 0 : (payment.paid_amount ?? 0);
     const newPaidTotal = alreadyPaid + received;
-    const isFullyPaid = newPaidTotal >= payment.amount;
+    const cobroAmount = isPaid ? received : Math.max(payment.amount, newPaidTotal);
+    const isFullyPaid = isPaid || newPaidTotal >= payment.amount;
 
-    await updatePayment.mutateAsync({
-      id: payment.id,
-      period,
-      status: isFullyPaid ? "paid" : "pending",
-      paid_date: values.paidDate,
-      paid_amount: isFullyPaid ? payment.amount : newPaidTotal,
-      payment_method: account.label,
-    });
+    try {
+      await updatePayment.mutateAsync({
+        id: payment.id,
+        period,
+        amount: cobroAmount,
+        status: isFullyPaid ? "paid" : "pending",
+        paid_date: isFullyPaid ? values.paidDate : payment.paid_date,
+        paid_amount: isFullyPaid ? cobroAmount : newPaidTotal,
+        payment_method: account.label,
+      });
 
-    if (isFullyPaid) {
-      await assignCommissionAccount(payment.id, account.label);
+      if (isFullyPaid) {
+        await assignCommissionAccount(payment.id, account.label, account.id);
+      }
+
+      if (expenses > 0) {
+        const tenant = payment.contract?.tenant?.name ?? "Inquilino";
+        const { error } = await supabase.schema("nodo_inmo").from("cash_movements").insert({
+          org_id: orgId,
+          type: "income",
+          amount: expenses,
+          currency: account.currency,
+          date: values.paidDate,
+          concept: `Expensas/Otros — ${tenant}`,
+          category: account.label,
+          cash_account_id: account.id,
+          source: "manual",
+        });
+        if (error) throw error;
+        queryClient.invalidateQueries({ queryKey: CASH_MOVEMENTS_QUERY_KEY });
+      }
+
+      onSuccess?.();
+      onOpenChange(false);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "No se pudo guardar el cobro. Intentá de nuevo.",
+      );
     }
-
-    onSuccess?.();
-    onOpenChange(false);
   }
 
   async function handleDelete() {
@@ -212,7 +251,7 @@ export function PaymentCollectDialog({
             <DialogDescription>
               {isPaid
                 ? "Corregí el mes, monto o cuenta de comisión. Podés anular el cobro si fue un error."
-                : "Completá el mes pagado, monto y cuenta donde va la comisión."}
+                : "Completá el mes pagado, monto del alquiler, expensas/otros (opcional) y cuenta."}
             </DialogDescription>
           </DialogHeader>
 
@@ -260,13 +299,23 @@ export function PaymentCollectDialog({
                 </div>
 
                 {!isPaid ? (
-                  <div className="space-y-1">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate2">
-                      Saldo pendiente
-                    </p>
-                    <p className="text-lg font-bold text-destructive">
-                      {formatMoney(remainingAmount(payment), payment.currency)}
-                    </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate2">
+                        Alquiler pactado
+                      </p>
+                      <p className="text-sm font-semibold text-navy">
+                        {formatMoney(payment.amount, payment.currency)}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate2">
+                        Saldo pendiente
+                      </p>
+                      <p className="text-lg font-bold text-destructive">
+                        {formatMoney(remainingAmount(payment), payment.currency)}
+                      </p>
+                    </div>
                   </div>
                 ) : null}
 
@@ -289,15 +338,40 @@ export function PaymentCollectDialog({
                   name="amountReceived"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Monto recibido</FormLabel>
+                      <FormLabel>Monto recibido (alquiler)</FormLabel>
                       <FormControl>
                         <Input
                           inputMode="decimal"
-                          placeholder="0"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(formatCurrencyInput(e.target.value))
-                          }
+                          placeholder={currency === "USD" ? "US$ 0" : "$ 0"}
+                          value={field.value}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "");
+                            field.onChange(formatCurrencyInput(raw, currency));
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="expensesAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expensas / Otros (opcional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          inputMode="decimal"
+                          placeholder={currency === "USD" ? "US$ 0 — vacío si no aplica" : "$ 0 — vacío si no aplica"}
+                          value={field.value ?? ""}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "");
+                            field.onChange(
+                              raw ? formatCurrencyInput(raw, currency) : "",
+                            );
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -311,24 +385,40 @@ export function PaymentCollectDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>¿A qué cuenta va mi comisión?</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        disabled={accountsLoading || accounts.length === 0}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Elegí una cuenta" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {currencyAccounts.map((account) => (
+                          {accounts.map((account) => (
                             <SelectItem key={account.id} value={account.id}>
                               {account.label}
+                              {account.currency === "USD" ? " · US$" : " · $"}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {accounts.length === 0 && !accountsLoading ? (
+                        <p className="text-xs text-destructive">
+                          No hay cuentas. Agregalas en Configuración → Cuentas bancarias.
+                        </p>
+                      ) : null}
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {submitError ? (
+                  <p role="alert" className="text-sm text-destructive">
+                    {submitError}
+                  </p>
+                ) : null}
 
                 <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
                   <div className="flex flex-wrap gap-2">
@@ -364,7 +454,7 @@ export function PaymentCollectDialog({
                     <Button
                       type="submit"
                       className="bg-brand text-white"
-                      disabled={updatePayment.isPending}
+                      disabled={updatePayment.isPending || accountsLoading || accounts.length === 0}
                     >
                       {updatePayment.isPending ? (
                         <>
