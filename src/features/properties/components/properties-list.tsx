@@ -59,6 +59,7 @@ import { cn } from "@/shared/lib/utils";
 // ── Filter types ──────────────────────────────────────────────────────────────
 
 interface Filters {
+  operation: string;
   property_type: string;
   rooms: string;
   priceMin: string;
@@ -68,6 +69,7 @@ interface Filters {
 }
 
 const EMPTY_FILTERS: Filters = {
+  operation: "",
   property_type: "",
   rooms: "",
   priceMin: "",
@@ -126,6 +128,8 @@ export function PropertiesList() {
           )
         )
           return false;
+        if (filters.operation && p.operation !== filters.operation)
+          return false;
         if (filters.property_type && p.property_type !== filters.property_type)
           return false;
         if (filters.rooms) {
@@ -177,6 +181,18 @@ export function PropertiesList() {
 
       {/* Filter bar */}
       <div className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-card px-4 py-3">
+        <FilterSelect
+          label="Operación"
+          value={filters.operation}
+          onChange={(v) => setFilter("operation", v)}
+          placeholder="Todos"
+          options={[
+            { value: "rent", label: "Alquiler" },
+            { value: "sale", label: "Venta" },
+          ]}
+          className="w-36"
+        />
+
         <FilterSelect
           label="Tipo"
           value={filters.property_type}

@@ -315,7 +315,7 @@ export function PaymentsList() {
                 <TableHead>Vencimiento</TableHead>
                 <TableHead>Monto</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead className="w-28 text-right">Acción</TableHead>
+                <TableHead className="w-44 text-right">Acción</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -391,6 +391,7 @@ export function PaymentsList() {
                               className="gap-1 text-destructive hover:bg-destructive/10"
                             >
                               <Trash2 className="h-4 w-4" />
+                              Eliminar
                             </Button>
                           </>
                         )}

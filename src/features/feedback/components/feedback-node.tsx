@@ -67,6 +67,14 @@ interface FeedbackDialogProps {
 export function FeedbackFAB() {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const dragStart = useRef({ x: 0, y: 0 });
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const touchActive = useRef(false);
+  const wasDragging = useRef(false);
   const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function handleMouseEnter() {
@@ -81,32 +89,135 @@ export function FeedbackFAB() {
     collapseTimer.current = setTimeout(() => setIsExpanded(false), 200);
   }
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    dragStart.current = { x: touch.clientX, y: touch.clientY };
+    dragOffset.current = { ...position };
+    touchActive.current = true;
+    setIsDragging(false);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchActive.current) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - dragStart.current.x;
+    const deltaY = touch.clientY - dragStart.current.y;
+    
+    if (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8) {
+      setIsDragging(true);
+      wasDragging.current = true;
+    }
+    
+    setPosition({
+      x: dragOffset.current.x + deltaX,
+      y: dragOffset.current.y + deltaY
+    });
+  };
+
+  const handleTouchEnd = () => {
+    touchActive.current = false;
+    setTimeout(() => {
+      setIsDragging(false);
+      wasDragging.current = false;
+    }, 100);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return; // Left click only
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    dragOffset.current = { ...position };
+    setIsDragging(false);
+    wasDragging.current = false;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - dragStart.current.x;
+      const deltaY = moveEvent.clientY - dragStart.current.y;
+
+      if (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8) {
+        setIsDragging(true);
+        wasDragging.current = true;
+      }
+
+      setPosition({
+        x: dragOffset.current.x + deltaX,
+        y: dragOffset.current.y + deltaY
+      });
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      setTimeout(() => {
+        setIsDragging(false);
+        wasDragging.current = false;
+      }, 100);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (wasDragging.current || isDragging) {
+      e.preventDefault();
+      return;
+    }
+    setIsOpen(true);
+  };
+
+  if (isDismissed) return null;
+
   return (
     <>
-      <button
-        onClick={() => setIsOpen(true)}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        className={cn(
-          "fixed bottom-6 right-6 z-40 flex h-14 items-center justify-center rounded-full text-white shadow-lg transition-all duration-300 hover:brightness-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111E2F]",
-          isExpanded ? "w-auto gap-3 px-6" : "w-14 gap-0 px-0",
-        )}
-        style={{ backgroundColor: "#111E2F" }}
+      <div
+        className="fixed bottom-6 right-6 z-40 touch-none flex items-center justify-center"
+        style={{
+          transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+        }}
       >
-        <img
-          src="/brand/nodo-mark-white.png"
-          alt="Nodo"
-          className="h-8 w-8 shrink-0"
-        />
-        <span
-          className={cn(
-            "overflow-hidden whitespace-nowrap font-display text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out",
-            isExpanded ? "max-w-xs opacity-100 pr-1" : "max-w-0 opacity-0",
-          )}
+        {/* Dismiss button visible on all viewport sizes */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsDismissed(true);
+          }}
+          className="absolute -top-1.5 -right-1.5 z-50 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-white shadow-md hover:bg-rose-700 active:scale-90"
+          title="Ocultar sugerencia"
         >
-          ¿Cómo mejorar este Nodo?
-        </span>
-      </button>
+          <span className="text-sm font-bold leading-none">×</span>
+        </button>
+
+        <button
+          onClick={handleClick}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleMouseDown}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          className={cn(
+            "flex h-14 items-center justify-center rounded-full text-white shadow-lg transition-all duration-300 hover:brightness-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#111E2F]",
+            isExpanded ? "w-auto gap-3 px-6" : "w-14 gap-0 px-0",
+            isDragging ? "cursor-grabbing" : "cursor-grab"
+          )}
+          style={{ backgroundColor: "#111E2F" }}
+        >
+          <img
+            src="/brand/nodo-mark-white.png"
+            alt="Nodo"
+            className="h-8 w-8 shrink-0 select-none pointer-events-none"
+          />
+          <span
+            className={cn(
+              "overflow-hidden whitespace-nowrap font-display text-sm font-semibold tracking-wide transition-all duration-300 ease-in-out select-none pointer-events-none",
+              isExpanded ? "max-w-xs opacity-100 pr-1" : "max-w-0 opacity-0",
+            )}
+          >
+            ¿Cómo mejorar este Nodo?
+          </span>
+        </button>
+      </div>
 
       <FeedbackDialog isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </>
@@ -256,7 +367,7 @@ function FeedbackDialog({ isOpen, onClose }: FeedbackDialogProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[460px] overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-lg">
+      <DialogContent className="sm:max-w-[460px] rounded-md border border-[var(--color-border)] bg-[var(--color-card)] p-6 shadow-lg">
         {submitSuccess ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <CheckCircle2 className="h-16 w-16 text-emerald-500 animate-bounce" />

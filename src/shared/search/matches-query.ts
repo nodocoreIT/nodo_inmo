@@ -8,7 +8,22 @@ export function matchesQuery(
 ): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return parts.some((p) =>
+  
+  // 1. Normal substring match (case insensitive)
+  const matchesNormal = parts.some((p) =>
     p === null || p === undefined ? false : String(p).toLowerCase().includes(q),
   );
+  if (matchesNormal) return true;
+
+  // 2. Digit-only comparison (removes hyphens, spaces, etc.) for phone numbers and DNI
+  const qClean = q.replace(/\D/g, "");
+  if (qClean) {
+    return parts.some((p) => {
+      if (p === null || p === undefined) return false;
+      const pClean = String(p).replace(/\D/g, "");
+      return pClean.includes(qClean);
+    });
+  }
+
+  return false;
 }

@@ -43,7 +43,7 @@ const DialogContent = React.forwardRef<
         // Animations
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         // Mobile: top-pinned with safe margins, scrollable so content is always reachable
-        "inset-x-3 top-3 translate-x-0 translate-y-0 max-h-[calc(100dvh-1.5rem)] overflow-y-auto",
+        "inset-x-4 top-4 w-[calc(100%-2rem)] translate-x-0 translate-y-0 max-h-[calc(100dvh-2rem)] overflow-y-auto",
         // Desktop: centered as usual
         "sm:inset-x-auto sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:max-h-[calc(100dvh-4rem)]",
         "data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",

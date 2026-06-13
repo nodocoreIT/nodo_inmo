@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
 import { FileText, Receipt } from "lucide-react";
 import { usePayments } from "@/features/payments/hooks/use-payments";
 import { useOrgProfile } from "@/features/agency-profile/hooks/use-org-profile";
-import { downloadPaymentReceipt } from "@/features/payments/lib/payment-receipt-pdf";
+import { PaymentReceiptViewer } from "@/features/payments/components/payment-receipt-viewer";
 import {
   Table,
   TableBody,
@@ -11,6 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/shared/components/ui/dialog";
 import { formatMoney, formatDate } from "@/features/contracts/lib/contract-labels";
 import type { RecentReceiptItem } from "../hooks/use-dashboard-metrics";
 
@@ -21,6 +29,7 @@ interface RecentReceiptsSectionProps {
 export function RecentReceiptsSection({ items }: RecentReceiptsSectionProps) {
   const { data: payments = [] } = usePayments();
   const { data: agency } = useOrgProfile();
+  const [viewPayment, setViewPayment] = useState<any | null>(null);
 
   return (
     <section className="rounded-md border border-border bg-card shadow-sm">
@@ -47,33 +56,41 @@ export function RecentReceiptsSection({ items }: RecentReceiptsSectionProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Inquilino</TableHead>
-              <TableHead>Monto</TableHead>
-              <TableHead>Fecha de cobro</TableHead>
-              <TableHead className="w-28 text-right">Documentos</TableHead>
+              <TableHead className="px-2 md:px-4">Inquilino</TableHead>
+              <TableHead className="px-2 md:px-4">Monto</TableHead>
+              <TableHead className="px-2 md:px-4">
+                <span className="hidden sm:inline">Fecha de cobro</span>
+                <span className="inline sm:hidden">Fecha</span>
+              </TableHead>
+              <TableHead className="w-12 sm:w-28 text-right px-2 md:px-4">
+                <span className="hidden sm:inline">Documento</span>
+                <span className="inline sm:hidden">PDF</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell className="font-medium text-navy">
+                <TableCell className="px-2 md:px-4 py-3 font-medium text-xs sm:text-sm text-navy max-w-[100px] sm:max-w-none truncate">
                   {item.tenantName}
                 </TableCell>
-                <TableCell className="font-semibold">
+                <TableCell className="px-2 md:px-4 py-3 font-semibold text-xs sm:text-sm whitespace-nowrap">
                   {formatMoney(item.amount, item.currency)}
                 </TableCell>
-                <TableCell>{formatDate(item.paidDate)}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="px-2 md:px-4 py-3 text-xs sm:text-sm whitespace-nowrap">
+                  {formatDate(item.paidDate)}
+                </TableCell>
+                <TableCell className="px-2 md:px-4 py-3 text-right">
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-sm p-1.5 text-slate2 hover:bg-mist hover:text-navy"
-                    aria-label={`Descargar recibo de ${item.tenantName}`}
+                    className="inline-flex items-center justify-center rounded-sm p-1.5 text-slate2 hover:bg-mist hover:text-navy hover:scale-105 active:scale-95"
+                    aria-label={`Ver recibo de ${item.tenantName}`}
                     onClick={() => {
                       const payment = payments.find((p) => p.id === item.id);
-                      if (payment) void downloadPaymentReceipt(payment, agency ?? null);
+                      if (payment) setViewPayment(payment);
                     }}
                   >
-                    <FileText className="h-4 w-4" />
+                    <FileText className="h-4 w-4 shrink-0" />
                   </button>
                 </TableCell>
               </TableRow>
@@ -81,6 +98,26 @@ export function RecentReceiptsSection({ items }: RecentReceiptsSectionProps) {
           </TableBody>
         </Table>
       )}
+
+      {/* PDF receipt viewer dialog */}
+      <Dialog
+        open={!!viewPayment}
+        onOpenChange={(open) => {
+          if (!open) setViewPayment(null);
+        }}
+      >
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Recibo de Cobro</DialogTitle>
+            <DialogDescription>
+              {viewPayment?.contract?.tenant?.name ?? "—"} ·{" "}
+              {viewPayment?.contract?.property?.address ?? "—"} ·{" "}
+              Periodo: {viewPayment?.period ?? "—"}
+            </DialogDescription>
+          </DialogHeader>
+          {viewPayment && <PaymentReceiptViewer payment={viewPayment} />}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

@@ -138,7 +138,7 @@ export function AdminLayout() {
   const displayName = fullName || email;
 
   return (
-    <div className="flex min-h-screen bg-paper]">
+    <div className="flex h-screen overflow-hidden bg-paper]">
       {/* Mobile Sidebar/Drawer Overlay */}
       {mobileMenuOpen && (
         <div
@@ -200,20 +200,6 @@ export function AdminLayout() {
 
         {/* Bottom: configuración + user — always visible */}
         <div className="flex-shrink-0 border-t border-[var(--color-sidebar-border)] p-3">
-          {role === "admin" && (
-            <button
-              type="button"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setSettingsOpen(true);
-              }}
-              className="mb-2 flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-sm font-medium text-[var(--color-sidebar-text)] transition-colors hover:bg-brand/10 hover:text-brand"
-            >
-              <Settings className="h-4 w-4 flex-shrink-0" />
-              Configuración
-            </button>
-          )}
-
           <div className="flex items-center gap-3 px-1 py-1">
             <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
               {initials(displayName)}
@@ -228,10 +214,10 @@ export function AdminLayout() {
             </div>
             <button
               type="button"
-              aria-label="Editar perfil"
+              aria-label="Configuración"
               onClick={() => {
                 setMobileMenuOpen(false);
-                setProfileOpen(true);
+                setSettingsOpen(true);
               }}
               className="flex-shrink-0 rounded-md p-1.5 text-[var(--color-sidebar-text)] transition-colors hover:text-brand"
             >
@@ -252,32 +238,52 @@ export function AdminLayout() {
 
       {/* ── Main area ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar — breadcrumb + section title (left), search (right) */}
-        <header className="flex min-h-20 items-center justify-between gap-4 border-b border-border bg-[#EEF3F8] px-4 sm:px-6 py-3 shadow-sm">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              className="block md:hidden text-navy hover:text-brand"
-              onClick={() => setMobileMenuOpen(true)}
-              aria-label="Abrir menú"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-            <div className="min-w-0">
-              <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate2">
-                Nodo Inmo · Gestión
-              </p>
-              <h1 className="truncate text-lg sm:text-xl font-bold text-navy">{title}</h1>
+        {/* Top bar — stacked on mobile, single line on desktop */}
+        <header className="flex flex-col sm:flex-row min-h-20 items-center justify-between gap-3 sm:gap-4 border-b border-border bg-[#EEF3F8] px-4 sm:px-6 py-3 shadow-sm flex-shrink-0">
+          {/* Row 1 / Left Section */}
+          <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                className="block md:hidden text-navy hover:text-brand"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Abrir menú"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              <div className="min-w-0">
+                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide text-slate2">
+                  Nodo Inmo · Gestión
+                </p>
+                <h1 className="truncate text-base sm:text-xl font-bold text-navy">{title}</h1>
+              </div>
+            </div>
+
+            {/* Mobile notification bell */}
+            <div className="flex items-center sm:hidden">
+              <NotificationsBell />
             </div>
           </div>
-          <div className="flex items-center gap-4 flex-1 justify-end max-w-[150px] sm:max-w-xs md:max-w-md w-full">
-            {placeholder && (
-              <div className="w-full flex-shrink">
+
+          {/* Row 2 / Right Section */}
+          {placeholder && (
+            <div className="w-full sm:w-auto flex-1 sm:max-w-xs md:max-w-md flex items-center gap-4 justify-between sm:justify-end">
+              <div className="w-full">
                 <SearchInput placeholder={placeholder} />
               </div>
-            )}
-            <NotificationsBell />
-          </div>
+              {/* Desktop notification bell */}
+              <div className="hidden sm:block">
+                <NotificationsBell />
+              </div>
+            </div>
+          )}
+
+          {/* Fallback for desktop when no search input exists */}
+          {!placeholder && (
+            <div className="hidden sm:flex items-center justify-end ml-auto">
+              <NotificationsBell />
+            </div>
+          )}
         </header>
 
         {/* Content area */}

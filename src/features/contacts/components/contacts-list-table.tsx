@@ -4,7 +4,7 @@
  * passing different column configs.
  */
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { PaginationControls } from "@/shared/components/ui/pagination";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -76,6 +76,7 @@ export function ContactsListTable({
   const [createOpen, setCreateOpen] = useState(false);
   const [editContact, setEditContact] = useState<ContactRow | null>(null);
   const [page, setPage] = useState(0);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(null);
 
   const createContact = useCreateContact();
   const updateContact = useUpdateContact();
@@ -87,10 +88,20 @@ export function ContactsListTable({
   );
   const noResults = !!data && data.length > 0 && filtered.length === 0;
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const sortedAndFiltered = useMemo(() => {
+    const list = [...filtered];
+    if (sortDirection === "asc") {
+      list.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    } else if (sortDirection === "desc") {
+      list.sort((a, b) => b.name.localeCompare(a.name, undefined, { sensitivity: "base" }));
+    }
+    return list;
+  }, [filtered, sortDirection]);
+
+  const totalPages = Math.ceil(sortedAndFiltered.length / PAGE_SIZE);
   const pagedRows = useMemo(
-    () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
-    [filtered, page],
+    () => sortedAndFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [sortedAndFiltered, page],
   );
 
   useEffect(() => { setPage(0); }, [query]);
@@ -147,12 +158,32 @@ export function ContactsListTable({
       )}
 
       {/* Table */}
-      {!isLoading && !isError && filtered.length > 0 && (
+      {!isLoading && !isError && sortedAndFiltered.length > 0 && (
         <div className="rounded-md border border-border bg-card shadow-sm">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nombre</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none hover:text-foreground"
+                  onClick={() => {
+                    setSortDirection((prev) => {
+                      if (prev === null) return "asc";
+                      if (prev === "asc") return "desc";
+                      return null;
+                    });
+                  }}
+                >
+                  <div className="flex items-center gap-1">
+                    Nombre
+                    {sortDirection === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-brand" />
+                    ) : sortDirection === "desc" ? (
+                      <ArrowDown className="h-3.5 w-3.5 text-brand" />
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                    )}
+                  </div>
+                </TableHead>
                 <TableHead>DNI</TableHead>
                 <TableHead>Teléfono</TableHead>
                 <TableHead>Email</TableHead>

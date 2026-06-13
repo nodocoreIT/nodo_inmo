@@ -19,6 +19,119 @@ import { useLogoUrl } from "@/features/agency-profile/hooks/use-logo-url";
 import { useUpsertOrgProfile } from "@/features/agency-profile/hooks/use-upsert-org-profile";
 import { useStaff } from "@/shared/hooks/use-staff";
 import { BankAccountsSection } from "./bank-accounts-section";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useUpdateProfile } from "@/features/profile/hooks/use-update-profile";
+import { useAuth } from "@/app/auth/use-auth";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/shared/components/ui/form";
+
+const profileSchema = z
+  .object({
+    full_name: z.string().min(1, "El nombre es requerido"),
+    password: z.string().optional(),
+    confirm_password: z.string().optional(),
+  })
+  .refine(
+    (v) => !v.password || v.password.length >= 6,
+    { path: ["password"], message: "Mínimo 6 caracteres" },
+  )
+  .refine((v) => (v.password ?? "") === (v.confirm_password ?? ""), {
+    path: ["confirm_password"],
+    message: "Las contraseñas no coinciden",
+  });
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
+
+function ProfileSettingsSection() {
+  const { user } = useAuth();
+  const { mutateAsync, isPending } = useUpdateProfile();
+  const currentName = (user?.user_metadata?.full_name as string | undefined) ?? "";
+  const email = user?.email ?? "";
+
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema) as any,
+    defaultValues: { full_name: currentName, password: "", confirm_password: "" },
+  });
+
+  async function handleSubmit(values: ProfileFormValues) {
+    await mutateAsync({ full_name: values.full_name, password: values.password });
+    form.reset({ full_name: values.full_name, password: "", confirm_password: "" });
+  }
+
+  return (
+    <div className="space-y-6 max-w-md">
+      <div>
+        <h3 className="text-base font-bold text-navy">Información Personal</h3>
+        <p className="text-xs text-slate2">Actualizá tu nombre y contraseña de acceso.</p>
+      </div>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit as any)} className="space-y-4">
+          <div className="space-y-1">
+            <Label>Email</Label>
+            <Input value={email} disabled readOnly className="bg-muted" />
+          </div>
+
+          <FormField
+            control={form.control as any}
+            name="full_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nombre</FormLabel>
+                <FormControl>
+                  <Input placeholder="Tu nombre" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control as any}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nueva contraseña</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="Dejá en blanco para no cambiarla" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control as any}
+            name="confirm_password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirmar contraseña</FormLabel>
+                <FormControl>
+                  <Input type="password" placeholder="Repetí la nueva contraseña" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <Button type="submit" disabled={isPending} className="w-full">
+            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Guardar Cambios
+          </Button>
+        </form>
+      </Form>
+    </div>
+  );
+}
+
 
 function LogoCustomUploader() {
   const { data: profile } = useOrgProfile();
@@ -105,8 +218,8 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<
-    "company" | "customization" | "users" | "ai"
-  >("company");
+    "profile" | "company" | "customization" | "users" | "ai"
+  >("profile");
   const { aiSettings, setAiSettings } = useAiSettings();
   const [apiKeyInput, setApiKeyInput] = useState(aiSettings.geminiApiKey);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -173,6 +286,16 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           {/* Selector de Tabs */}
           <div className="flex gap-4 border-b border-border overflow-x-auto scrollbar-none whitespace-nowrap -mx-6 px-6">
             <button
+              onClick={() => setActiveTab("profile")}
+              className={`pb-3 text-sm font-semibold border-b-2 transition-all flex-shrink-0 ${
+                activeTab === "profile"
+                  ? "border-brand text-brand"
+                  : "border-transparent text-slate2 hover:text-navy"
+              }`}
+            >
+              Mi Perfil
+            </button>
+            <button
               onClick={() => setActiveTab("company")}
               className={`pb-3 text-sm font-semibold border-b-2 transition-all flex-shrink-0 ${
                 activeTab === "company"
@@ -180,7 +303,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   : "border-transparent text-slate2 hover:text-navy"
               }`}
             >
-              Mi Perfil / Empresa
+              Datos de Empresa
             </button>
             <button
               onClick={() => setActiveTab("users")}
@@ -217,6 +340,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
         {/* Content (Scrollable) */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* TAB 0: Mi Perfil */}
+          {activeTab === "profile" && <ProfileSettingsSection />}
+
           {/* TAB 1: Mi Perfil / Empresa */}
           {activeTab === "company" && (
             <div className="space-y-8">

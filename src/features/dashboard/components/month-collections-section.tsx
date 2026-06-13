@@ -55,40 +55,49 @@ export function MonthCollectionsSection({ items }: MonthCollectionsSectionProps)
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Inquilino</TableHead>
-              <TableHead>Estado de pago</TableHead>
-              <TableHead>Saldo a cobrar</TableHead>
-              <TableHead className="w-32 text-right">Acción</TableHead>
+              <TableHead className="px-2 md:px-4">Inquilino</TableHead>
+              <TableHead className="px-2 md:px-4">
+                <span className="hidden sm:inline">Estado de pago</span>
+                <span className="inline sm:hidden">Estado</span>
+              </TableHead>
+              <TableHead className="px-2 md:px-4">
+                <span className="hidden sm:inline">Saldo a cobrar</span>
+                <span className="inline sm:hidden">Saldo</span>
+              </TableHead>
+              <TableHead className="w-12 sm:w-32 text-right px-2 md:px-4">Acción</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((item) => (
               <TableRow key={item.key}>
-                <TableCell>
-                  <p className="font-semibold text-navy">{item.tenantName}</p>
-                  <p className="text-xs text-slate2">{item.propertyAddress}</p>
+                <TableCell className="px-2 md:px-4 py-3 max-w-[100px] sm:max-w-none">
+                  <p className="font-semibold text-xs sm:text-sm text-navy truncate">{item.tenantName}</p>
+                  <p className="text-[10px] sm:text-xs text-slate2 truncate">{item.propertyAddress}</p>
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-2 md:px-4 py-3">
                   <span
                     className={cn(
-                      "inline-flex rounded-pill px-2.5 py-0.5 text-xs font-semibold uppercase",
+                      "inline-flex rounded-pill px-2 py-0.5 text-[10px] sm:text-xs font-semibold uppercase whitespace-nowrap",
                       STATUS_CLASS[item.status],
                     )}
                   >
                     {STATUS_LABEL[item.status]}
                   </span>
                 </TableCell>
-                <TableCell className="font-bold text-destructive">
+                <TableCell className="px-2 md:px-4 py-3 font-bold text-xs sm:text-sm text-destructive whitespace-nowrap">
                   {formatMoney(item.balance, item.currency)}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="px-2 md:px-4 py-3 text-right">
                   <Button
                     size="sm"
-                    className="gap-1 bg-brand text-xs font-bold uppercase hover:opacity-90"
+                    className="h-7 w-7 sm:h-8 sm:w-auto p-0 sm:px-3 sm:py-2 gap-1 bg-brand text-xs font-bold uppercase hover:opacity-90 flex items-center justify-center ml-auto"
                     onClick={() => handleCollect(item)}
+                    title={item.status === "pago_parcial" ? "Saldar" : "Cobrar"}
                   >
-                    <Plus className="h-3.5 w-3.5" />
-                    {item.status === "pago_parcial" ? "Saldar" : "Cobrar"}
+                    <Plus className="h-3.5 w-3.5 shrink-0" />
+                    <span className="hidden sm:inline">
+                      {item.status === "pago_parcial" ? "Saldar" : "Cobrar"}
+                    </span>
                   </Button>
                 </TableCell>
               </TableRow>

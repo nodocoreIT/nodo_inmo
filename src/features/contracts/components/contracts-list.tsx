@@ -1,19 +1,17 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Pencil, Trash2, CalendarPlus, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { PaginationControls } from "@/shared/components/ui/pagination";
 import { Button } from "@/shared/components/ui/button";
 import { useContracts } from "@/features/contracts/hooks/use-contracts";
 import type { ContractWithRelations } from "@/features/contracts/hooks/use-contracts";
 import { useDeleteContract } from "@/features/contracts/hooks/use-delete-contract";
 import { useUpdateContract } from "@/features/contracts/hooks/use-update-contract";
-import { useGenerateInstallments } from "@/features/payments/hooks/use-generate-installments";
 import { ContractFormDialog } from "./contract-form-dialog";
 import { useSearchStore } from "@/shared/search/use-search-store";
 import { matchesQuery } from "@/shared/search/matches-query";
 import { CreateContractDialog } from "./create-contract-dialog";
 import { ContractPdfViewer } from "./contract-pdf-viewer";
 import { ContractStatusBadge } from "./contract-status-badge";
-import { ContractLocacionButton } from "./contract-locacion-button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,16 +49,17 @@ export function ContractsList() {
   const { data, isLoading, isError } = useContracts();
   const query = useSearchStore((s) => s.query);
   const [createOpen, setCreateOpen] = useState(false);
-  const [editContract, setEditContract] = useState<ContractWithRelations | null>(
-    null,
-  );
-  const [viewContract, setViewContract] = useState<ContractWithRelations | null>(
-    null,
-  );
+  const [editContract, setEditContract] =
+    useState<ContractWithRelations | null>(null);
+  const [viewContract, setViewContract] =
+    useState<ContractWithRelations | null>(null);
   const deleteContract = useDeleteContract();
   const updateContract = useUpdateContract();
-  const generateInstallments = useGenerateInstallments();
   const [page, setPage] = useState(0);
+  const [sortConfig, setSortConfig] = useState<{
+    key: "tenant" | "property" | "start_date" | "end_date" | null;
+    direction: "asc" | "desc";
+  }>({ key: null, direction: "asc" });
 
   const filtered = (data ?? []).filter((c) =>
     matchesQuery(
@@ -70,13 +69,47 @@ export function ContractsList() {
   );
   const noResults = !!data && data.length > 0 && filtered.length === 0;
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const sortedAndFiltered = useMemo(() => {
+    const list = [...filtered];
+    if (!sortConfig.key) return list;
+
+    list.sort((a, b) => {
+      let valA = "";
+      let valB = "";
+
+      if (sortConfig.key === "tenant") {
+        valA = a.tenant?.name ?? "";
+        valB = b.tenant?.name ?? "";
+      } else if (sortConfig.key === "property") {
+        valA = a.property?.address ?? "";
+        valB = b.property?.address ?? "";
+      } else if (sortConfig.key === "start_date") {
+        valA = a.start_date ?? "";
+        valB = b.start_date ?? "";
+      } else if (sortConfig.key === "end_date") {
+        valA = a.end_date ?? "";
+        valB = b.end_date ?? "";
+      }
+
+      if (sortConfig.direction === "asc") {
+        return valA.localeCompare(valB, undefined, { sensitivity: "base" });
+      } else {
+        return valB.localeCompare(valA, undefined, { sensitivity: "base" });
+      }
+    });
+
+    return list;
+  }, [filtered, sortConfig]);
+
+  const totalPages = Math.ceil(sortedAndFiltered.length / PAGE_SIZE);
   const pagedRows = useMemo(
-    () => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
-    [filtered, page],
+    () => sortedAndFiltered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [sortedAndFiltered, page],
   );
 
-  useEffect(() => { setPage(0); }, [query]);
+  useEffect(() => {
+    setPage(0);
+  }, [query]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -132,10 +165,110 @@ export function ContractsList() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Propiedad</TableHead>
-                <TableHead>Inquilino</TableHead>
-                <TableHead>Inicio</TableHead>
-                <TableHead>Fin</TableHead>
+                <TableHead
+                  className="cursor-pointer select-none hover:text-foreground"
+                  onClick={() => {
+                    setSortConfig((prev) => {
+                      if (prev.key === "tenant") {
+                        if (prev.direction === "asc") {
+                          return { key: "tenant", direction: "desc" };
+                        } else {
+                          return { key: null, direction: "asc" };
+                        }
+                      }
+                      return { key: "tenant", direction: "asc" };
+                    });
+                  }}
+                >
+                  <div className="flex items-center gap-1">
+                    Inquilino
+                    {sortConfig.key === "tenant" && sortConfig.direction === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-brand" />
+                    ) : sortConfig.key === "tenant" && sortConfig.direction === "desc" ? (
+                      <ArrowDown className="h-3.5 w-3.5 text-brand" />
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer select-none hover:text-foreground"
+                  onClick={() => {
+                    setSortConfig((prev) => {
+                      if (prev.key === "property") {
+                        if (prev.direction === "asc") {
+                          return { key: "property", direction: "desc" };
+                        } else {
+                          return { key: null, direction: "asc" };
+                        }
+                      }
+                      return { key: "property", direction: "asc" };
+                    });
+                  }}
+                >
+                  <div className="flex items-center gap-1">
+                    Propiedad
+                    {sortConfig.key === "property" && sortConfig.direction === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-brand" />
+                    ) : sortConfig.key === "property" && sortConfig.direction === "desc" ? (
+                      <ArrowDown className="h-3.5 w-3.5 text-brand" />
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer select-none hover:text-foreground"
+                  onClick={() => {
+                    setSortConfig((prev) => {
+                      if (prev.key === "start_date") {
+                        if (prev.direction === "asc") {
+                          return { key: "start_date", direction: "desc" };
+                        } else {
+                          return { key: null, direction: "asc" };
+                        }
+                      }
+                      return { key: "start_date", direction: "asc" };
+                    });
+                  }}
+                >
+                  <div className="flex items-center gap-1">
+                    Inicio
+                    {sortConfig.key === "start_date" && sortConfig.direction === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-brand" />
+                    ) : sortConfig.key === "start_date" && sortConfig.direction === "desc" ? (
+                      <ArrowDown className="h-3.5 w-3.5 text-brand" />
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                    )}
+                  </div>
+                </TableHead>
+                <TableHead
+                  className="cursor-pointer select-none hover:text-foreground"
+                  onClick={() => {
+                    setSortConfig((prev) => {
+                      if (prev.key === "end_date") {
+                        if (prev.direction === "asc") {
+                          return { key: "end_date", direction: "desc" };
+                        } else {
+                          return { key: null, direction: "asc" };
+                        }
+                      }
+                      return { key: "end_date", direction: "asc" };
+                    });
+                  }}
+                >
+                  <div className="flex items-center gap-1">
+                    Fin
+                    {sortConfig.key === "end_date" && sortConfig.direction === "asc" ? (
+                      <ArrowUp className="h-3.5 w-3.5 text-brand" />
+                    ) : sortConfig.key === "end_date" && sortConfig.direction === "desc" ? (
+                      <ArrowDown className="h-3.5 w-3.5 text-brand" />
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+                    )}
+                  </div>
+                </TableHead>
                 <TableHead>Alquiler</TableHead>
                 <TableHead>Ajuste</TableHead>
                 <TableHead>Estado</TableHead>
@@ -145,10 +278,10 @@ export function ContractsList() {
             <TableBody>
               {pagedRows.map((contract) => (
                 <TableRow key={contract.id}>
+                  <TableCell>{contract.tenant?.name ?? "—"}</TableCell>
                   <TableCell className="font-medium">
                     {contract.property?.address ?? "—"}
                   </TableCell>
-                  <TableCell>{contract.tenant?.name ?? "—"}</TableCell>
                   <TableCell>{formatDate(contract.start_date)}</TableCell>
                   <TableCell>{formatDate(contract.end_date)}</TableCell>
                   <TableCell>
@@ -164,7 +297,6 @@ export function ContractsList() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <ContractLocacionButton contract={contract} />
                       <Button
                         variant="ghost"
                         size="sm"
@@ -172,27 +304,8 @@ export function ContractsList() {
                         title="Ver PDF"
                         onClick={() => setViewContract(contract)}
                       >
-                        <Eye className="h-4 w-4" />
+                        <FileText className="h-4 w-4" />
                         <span className="sr-only">Ver PDF</span>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        aria-label="Generar cuotas"
-                        title="Generar cuotas"
-                        onClick={() =>
-                          generateInstallments.mutate({
-                            contract_id: contract.id,
-                            start_date: contract.start_date,
-                            end_date: contract.end_date,
-                            rent_amount: contract.rent_amount,
-                            currency: contract.currency,
-                            status: contract.status,
-                          })
-                        }
-                      >
-                        <CalendarPlus className="h-4 w-4" />
-                        <span className="sr-only">Generar cuotas</span>
                       </Button>
                       <Button
                         variant="ghost"
@@ -204,7 +317,9 @@ export function ContractsList() {
                         <span className="sr-only">Editar</span>
                       </Button>
                       <DeleteAction
-                        onConfirm={() => deleteContract.mutateAsync(contract.id)}
+                        onConfirm={() =>
+                          deleteContract.mutateAsync(contract.id)
+                        }
                       />
                     </div>
                   </TableCell>
@@ -297,4 +412,3 @@ function DeleteAction({ onConfirm }: { onConfirm: () => void }) {
     </AlertDialog>
   );
 }
-
