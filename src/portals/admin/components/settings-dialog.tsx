@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Loader2, Plus, Trash2, Mail, UserPlus, Image as ImageIcon, BrainCircuit, CheckCircle2, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, UserPlus, Image as ImageIcon, BrainCircuit, CheckCircle2, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { useAiSettings } from "@/shared/hooks/use-ai-settings";
 import {
   Dialog,
@@ -18,7 +18,7 @@ import { useUploadLogo } from "@/features/agency-profile/hooks/use-upload-logo";
 import { useLogoUrl } from "@/features/agency-profile/hooks/use-logo-url";
 import { useUpsertOrgProfile } from "@/features/agency-profile/hooks/use-upsert-org-profile";
 import { useStaff } from "@/shared/hooks/use-staff";
-import { useCashAccounts } from "@/shared/hooks/use-cash-accounts";
+import { BankAccountsSection } from "./bank-accounts-section";
 
 function LogoCustomUploader() {
   const { data: profile } = useOrgProfile();
@@ -118,12 +118,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     setTimeout(() => setAiKeySaved(false), 2500);
   };
   const { settings, setSettings, resetSettings } = useThemeSettings();
-  const { accounts: cashAccounts, addAccount, removeAccount } = useCashAccounts();
-
-  const [newBank, setNewBank] = useState({ bankName: "", alias: "", cbu: "" });
-  const [isAddingBank, setIsAddingBank] = useState(false);
-
-  const bankAccounts = cashAccounts.filter((a) => a.kind === "BANCO" && a.cbu);
 
   // Dynamic Users state (mocked mapped to Node architecture logic)
   const { users, inviteUser } = useStaff();
@@ -134,25 +128,6 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   });
   const [isInviting, setIsInviting] = useState(false);
   const [inviteSuccess, setInviteSuccess] = useState(false);
-
-  const handleAddBank = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newBank.bankName || !newBank.cbu) return;
-    await addAccount({
-      label: `${newBank.bankName} Pesos (ARS)`,
-      currency: "ARS",
-      kind: "BANCO",
-      bank_name: newBank.bankName,
-      alias: newBank.alias || undefined,
-      cbu: newBank.cbu,
-    });
-    setNewBank({ bankName: "", alias: "", cbu: "" });
-    setIsAddingBank(false);
-  };
-
-  const handleRemoveBank = async (id: string) => {
-    await removeAccount(id);
-  };
 
   const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,147 +227,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <AgencyProfileForm onSuccess={() => {}} />
               </div>
 
-              <div className="border-t border-border pt-6">
-                <div className="flex justify-between items-center mb-4">
-                  <div>
-                    <h3 className="text-base font-bold text-navy">
-                      Cuentas Bancarias
-                    </h3>
-                    <p className="text-xs text-slate2">
-                      Cuentas habilitadas para las liquidaciones y pagos.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => setIsAddingBank(!isAddingBank)}
-                    size="sm"
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Agregar cuenta
-                  </Button>
-                </div>
-
-                {isAddingBank && (
-                  <form
-                    onSubmit={handleAddBank}
-                    className="bg-paper p-4 rounded-md border border-border gap-4 grid grid-cols-1 sm:grid-cols-3 mb-4"
-                  >
-                    <div className="space-y-1">
-                      <Label htmlFor="bankName">Banco</Label>
-                      <Input
-                        id="bankName"
-                        placeholder="Ej. Banco Galicia"
-                        value={newBank.bankName}
-                        onChange={(e) =>
-                          setNewBank({ ...newBank, bankName: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="alias">Alias</Label>
-                      <Input
-                        id="alias"
-                        placeholder="Ej. NODO.INMO"
-                        value={newBank.alias}
-                        onChange={(e) =>
-                          setNewBank({ ...newBank, alias: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="cbu">CBU/CVU</Label>
-                      <Input
-                        id="cbu"
-                        placeholder="22 dígitos"
-                        value={newBank.cbu}
-                        onChange={(e) =>
-                          setNewBank({ ...newBank, cbu: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="col-span-1 sm:col-span-3 flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsAddingBank(false)}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button type="submit" size="sm">
-                        Confirmar
-                      </Button>
-                    </div>
-                  </form>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {bankAccounts.map((account) => (
-                    <div
-                      key={account.id}
-                      className="p-4 bg-card rounded-md border border-border flex justify-between items-start"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-bold text-navy text-sm">
-                          {account.bank_name ?? account.label}
-                        </p>
-                        <p className="text-xs text-slate2">
-                          <strong>Alias:</strong> {account.alias || "-"}
-                        </p>
-                        <p className="text-xs text-slate2 font-mono">
-                          <strong>CBU:</strong> {account.cbu}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void handleRemoveBank(account.id)}
-                        className="text-destructive hover:bg-destructive/10 p-1.5 rounded-md transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                  {bankAccounts.length === 0 && (
-                    <p className="col-span-2 text-center py-6 text-sm text-slate2">
-                      No hay cuentas bancarias registradas.
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-6 space-y-3">
-                  <h4 className="text-sm font-bold text-navy">
-                    Todas las cuentas de caja
-                  </h4>
-                  <p className="text-xs text-slate2">
-                    Usadas en cobros, movimientos manuales y caja destino.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {cashAccounts.map((account) => (
-                      <div
-                        key={account.id}
-                        className="flex items-center justify-between rounded-md border border-border bg-card px-4 py-3"
-                      >
-                        <div>
-                          <span className="text-sm font-medium text-navy">
-                            {account.label}
-                          </span>
-                          <p className="text-xs text-slate2">{account.kind}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => void removeAccount(account.id)}
-                          className="rounded-md p-1.5 text-destructive hover:bg-destructive/10"
-                          aria-label={`Eliminar ${account.label}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <BankAccountsSection />
             </div>
           )}
 
