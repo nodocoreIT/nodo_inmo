@@ -84,12 +84,33 @@ function periodToMonthInput(period: string): string {
   return period.slice(0, 7);
 }
 
-function findAccountIdByLabel(
-  accounts: { id: string; label: string }[],
-  label: string | null | undefined,
-): string {
-  if (!label) return accounts[0]?.id ?? "";
-  return accounts.find((a) => a.label === label)?.id ?? accounts[0]?.id ?? "";
+function formatSubmitError(err: unknown): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (err && typeof err === "object" && "message" in err) {
+    const message = (err as { message: unknown }).message;
+    if (typeof message === "string" && message.length > 0) return message;
+  }
+  return "No se pudo guardar el cobro. Intentá de nuevo.";
+}
+
+async function resolveCommissionAccountId(
+  paymentId: string,
+  pool: { id: string; label: string }[],
+): Promise<string | undefined> {
+  const { data } = await supabase
+    .schema("nodo_inmo")
+    .from("cash_movements")
+    .select("cash_account_id, category")
+    .eq("payment_id", paymentId)
+    .eq("source", "commission")
+    .limit(1)
+    .maybeSingle();
+
+  if (data?.cash_account_id) return data.cash_account_id;
+  if (data?.category) {
+    return pool.find((a) => a.label === data.category)?.id;
+  }
+  return undefined;
 }
 
 export function PaymentCollectDialog({
@@ -130,23 +151,38 @@ export function PaymentCollectDialog({
   useEffect(() => {
     if (!open || !payment) return;
 
-    const defaultAmount = isPaid
-      ? (payment.paid_amount ?? payment.amount)
-      : payment.amount;
+    let cancelled = false;
 
-    const matchingAccounts = accounts.filter((a) => a.currency === currency);
-    const pool = matchingAccounts.length > 0 ? matchingAccounts : accounts;
-    const defaultAccount =
-      pool.find((a) => a.id === findAccountIdByLabel(pool, payment.payment_method)) ??
-      pool[0];
+    void (async () => {
+      const defaultAmount = isPaid
+        ? (payment.paid_amount ?? payment.amount)
+        : payment.amount;
 
-    form.reset({
-      periodMonth: periodToMonthInput(payment.period),
-      paidDate: payment.paid_date ?? today,
-      amountReceived: formatCurrencyInput(String(Math.round(defaultAmount)), currency),
-      expensesAmount: "",
-      commissionAccountId: defaultAccount?.id ?? "",
-    });
+      const matchingAccounts = accounts.filter((a) => a.currency === currency);
+      const pool = matchingAccounts.length > 0 ? matchingAccounts : accounts;
+
+      const savedAccountId = isPaid
+        ? await resolveCommissionAccountId(payment.id, pool)
+        : undefined;
+
+      const defaultAccount =
+        (savedAccountId ? pool.find((a) => a.id === savedAccountId) : undefined) ??
+        pool[0];
+
+      if (cancelled) return;
+
+      form.reset({
+        periodMonth: periodToMonthInput(payment.period),
+        paidDate: payment.paid_date ?? today,
+        amountReceived: formatCurrencyInput(String(Math.round(defaultAmount)), currency),
+        expensesAmount: "",
+        commissionAccountId: defaultAccount?.id ?? "",
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, payment, isPaid, accounts, currency, form, today]);
 
   async function handleSubmit(values: FormValues) {
@@ -183,7 +219,7 @@ export function PaymentCollectDialog({
         status: isFullyPaid ? "paid" : "pending",
         paid_date: isFullyPaid ? values.paidDate : payment.paid_date,
         paid_amount: isFullyPaid ? cobroAmount : newPaidTotal,
-        payment_method: account.label,
+        payment_method: "transfer",
       });
 
       if (isFullyPaid) {
@@ -210,9 +246,7 @@ export function PaymentCollectDialog({
       onSuccess?.();
       onOpenChange(false);
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "No se pudo guardar el cobro. Intentá de nuevo.",
-      );
+      setSubmitError(formatSubmitError(err));
     }
   }
 
